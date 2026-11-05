@@ -1,0 +1,23 @@
+---
+import PanelLayout from '../../../../layouts/PanelLayout.astro';
+import Badge from '../../../../components/Badge.astro';
+import DataTable from '../../../../components/DataTable.astro';
+import { adminDb } from '../../../../lib/supabase/server';
+import { can } from '../../../../lib/admin-resources';
+import { fmtDate } from '../../../../lib/utils/format';
+if (!can(Astro.locals, 'participants.view') || !/^[0-9a-f-]{36}$/i.test(Astro.params.id!)) return Astro.rewrite('/404');
+const db = adminDb();
+const { data: p } = await db.from('profiles').select('*').eq('id', Astro.params.id!).maybeSingle();
+if (!p) return Astro.rewrite('/404');
+const { data: regs } = await db.from('registrations').select('id,registration_code,registration_status,payment_status,created_at,event:events(title)').eq('user_id', p.id).order('created_at', { ascending: false }).limit(20);
+const suspend = can(Astro.locals, 'participants.suspend') && p.id !== Astro.locals.user?.id;
+---
+<PanelLayout title={p.full_name ?? 'Peserta'} variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: 'Peserta', href: '/admin/dashboard/participants' }, { label: p.full_name ?? p.email ?? 'Peserta' }]}>
+  <div class="row between"><h1>{p.full_name ?? '—'}</h1><div class="row"><Badge status={p.account_status} />{suspend && (p.account_status === 'active'
+    ? <button class="btn btn--danger btn--sm" data-action={`/api/v1/admin/participants/${p.id}/status`} data-body='{"account_status":"suspended"}' data-reason="Alasan menangguhkan akun (wajib):" data-confirm="Tangguhkan akun ini? Peserta tidak dapat masuk atau mendaftar.">Tangguhkan</button>
+    : <button class="btn btn--sm" data-action={`/api/v1/admin/participants/${p.id}/status`} data-body='{"account_status":"active"}' data-reason="Alasan mengaktifkan kembali (wajib):">Aktifkan kembali</button>)}</div></div>
+  <section class="card card--pad" style="margin:16px 0;max-width:640px"><dl class="kv"><dt>Email</dt><dd>{p.email}</dd><dt>Telepon</dt><dd>{p.phone ?? '—'}</dd><dt>Bergabung</dt><dd>{fmtDate(p.created_at, true)}</dd></dl></section>
+  <h2 style="font-size:1.2rem;margin-bottom:12px">Riwayat pendaftaran</h2>
+  <DataTable caption="Riwayat pendaftaran peserta" empty="Belum ada pendaftaran" rows={regs ?? []} cols={[{ key: 'registration_code', label: 'Kode', type: 'link', href: (r: any) => `/admin/dashboard/registrations/${r.id}` }, { key: 'event.title', label: 'Event' }, { key: 'registration_status', label: 'Status', type: 'badge' }, { key: 'payment_status', label: 'Bayar', type: 'badge' }, { key: 'created_at', label: 'Dibuat', type: 'date' }]} />
+  <script>import '../../../../scripts/admin-actions.ts';</script>
+</PanelLayout>

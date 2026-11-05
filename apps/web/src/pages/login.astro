@@ -1,0 +1,15 @@
+---
+import PublicLayout from '../layouts/PublicLayout.astro';
+import FormField from '../components/FormField.astro';
+import Alert from '../components/Alert.astro';
+import { safeRedirect } from '../lib/utils/safe-redirect';
+if (Astro.locals.user) return Astro.redirect(safeRedirect(Astro.url.searchParams.get('next')));
+const sp = Astro.url.searchParams, next = safeRedirect(sp.get('next'));
+const err = { invalid: 'Email atau kata sandi salah.', rate: 'Terlalu banyak percobaan. Coba lagi beberapa menit lagi.', suspended: 'Akun ini ditangguhkan. Hubungi kami untuk bantuan.', link: 'Tautan tidak valid atau sudah kedaluwarsa.' }[sp.get('error') ?? ''];
+---
+<PublicLayout title="Masuk" noindex><section class="auth wrap"><div class="card"><h1 style="font-size:2rem">Masuk</h1>
+  {sp.get('registered') && <Alert tone="ok">Akun dibuat. Periksa email Anda untuk verifikasi, lalu masuk.</Alert>}{err && <Alert tone="bad">{err}</Alert>}
+  <form class="form" method="post" action="/api/auth/signin" style="margin-top:16px"><input type="hidden" name="next" value={next} />
+    <FormField name="email" type="email" label="Email" required autocomplete="email" /><FormField name="password" type="password" label="Kata sandi" required autocomplete="current-password" />
+    <button class="btn" type="submit">Masuk</button></form>
+  <p class="small" style="margin:16px 0 0"><a href="/forgot-password">Lupa kata sandi?</a> · Belum punya akun? <a href={`/register`}>Daftar</a></p></div></section></PublicLayout>

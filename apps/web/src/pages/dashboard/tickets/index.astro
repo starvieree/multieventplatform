@@ -1,0 +1,9 @@
+---
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import DataTable from '../../../components/DataTable.astro';
+const { data } = await Astro.locals.supabase.from('tickets').select('id,ticket_code,status,attendee_name,registration:registrations(event:events(title,start_at))').order('issued_at', { ascending: false });
+const rows = (data ?? []).map((t: any) => ({ ...t, title: t.registration?.event?.title, start: t.registration?.event?.start_at }));
+---
+<PanelLayout title="Tiket saya" variant="participant" crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Tiket' }]}>
+  <h1>Tiket saya</h1><div style="margin-top:16px"><DataTable caption="Daftar tiket" empty="Belum ada tiket. Tiket terbit setelah pendaftaran terkonfirmasi." rows={rows} cols={[{ key: 'ticket_code', label: 'Kode tiket', type: 'link', href: (r) => `/dashboard/tickets/${r.id}` }, { key: 'title', label: 'Event' }, { key: 'start', label: 'Waktu', type: 'datetime' }, { key: 'status', label: 'Status', type: 'badge' }]} /></div>
+</PanelLayout>

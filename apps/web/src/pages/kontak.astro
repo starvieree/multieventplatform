@@ -1,0 +1,23 @@
+---
+import PublicLayout from '../layouts/PublicLayout.astro';
+import Breadcrumb from '../components/Breadcrumb.astro';
+import FormField from '../components/FormField.astro';
+import { adminDb } from '../lib/supabase/server';
+const { data } = await adminDb().from('app_settings').select('value').eq('key', 'site').maybeSingle();   // pengaturan situs bukan data sensitif; dibaca server-side
+const site = (data?.value ?? {}) as Record<string, string>;
+const faq = [['Berapa lama pesan dibalas?', 'Pesan ditinjau tim kami lalu dibalas lewat email yang Anda tulis.'], ['Pembayaran saya belum berubah, apa yang harus dilakukan?', 'Buka detail pendaftaran dan pilih "Segarkan status". Bila tetap pending, kirim kode pendaftaran lewat formulir ini.'], ['Bagaimana membatalkan pendaftaran?', 'Ikuti kebijakan pembatalan di halaman Syarat & ketentuan, atau hubungi penyelenggara event.']];
+---
+<PublicLayout title="Kontak" description="Hubungi tim Platform Event untuk bantuan pendaftaran, pembayaran, dan kemitraan.">
+  <section class="hero"><div class="wrap"><Breadcrumb items={[{ label: 'Beranda', href: '/' }, { label: 'Kontak' }]} /><h1 style="margin-top:20px">Ada yang bisa kami bantu?</h1><p class="lead">Tulis pesan Anda. Sertakan kode pendaftaran bila terkait pembayaran atau tiket.</p></div></section>
+  <section class="section" style="padding-top:8px"><div class="wrap grid grid--2" style="align-items:start">
+    <div class="stack"><h2>Kontak resmi</h2><dl class="kv"><dt>Email</dt><dd>{site.email ? <a href={`mailto:${site.email}`}>{site.email}</a> : '—'}</dd><dt>Telepon</dt><dd>{site.phone || '—'}</dd><dt>Alamat</dt><dd>{site.address || '—'}</dd></dl></div>
+    <form class="form card card--pad" data-json-form data-hp data-endpoint="/api/v1/contact-messages" data-success="Pesan terkirim. Terima kasih, kami akan membalas lewat email." data-reset>
+      <FormField name="name" label="Nama" required autocomplete="name" /><FormField name="email" type="email" label="Email" required autocomplete="email" /><FormField name="subject" label="Subjek" required />
+      <FormField name="message" type="textarea" label="Pesan" required rows={6} />
+      <div class="hp" aria-hidden="true"><label>Jangan diisi<input name="hp" tabindex="-1" autocomplete="off" /></label></div>
+      <FormField name="consent" type="checkbox" label="Saya setuju data ini dipakai untuk membalas pesan saya." required />
+      <div data-feedback hidden></div><button class="btn" type="submit">Kirim pesan</button></form></div></section>
+  <section class="section section--muted"><div class="wrap grid grid--2" style="align-items:start"><div><h2>Pertanyaan umum</h2></div><div>{faq.map(([q, a]) => <details class="faq"><summary>{q}</summary><div>{a}</div></details>)}</div></div></section>
+  <section class="section section--dark on-dark"><div class="wrap"><div class="section-head" style="margin:0"><h2 style="color:#fff">Ingin menyelenggarakan event?</h2><div class="row"><a class="btn" href="/partnership">Ajukan kemitraan</a></div></div></div></section>
+  <script>import '../scripts/json-form.ts';</script>
+</PublicLayout>

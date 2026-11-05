@@ -1,0 +1,18 @@
+---
+import PanelLayout from '../../../../layouts/PanelLayout.astro';
+import EventForm from '../../../../components/EventForm.astro';
+import Badge from '../../../../components/Badge.astro';
+import { adminDb } from '../../../../lib/supabase/server';
+import { can } from '../../../../lib/admin-resources';
+if (!can(Astro.locals, 'events.manage') || !/^[0-9a-f-]{36}$/i.test(Astro.params.id!)) return Astro.rewrite('/404');
+const db = adminDb(), id = Astro.params.id!;
+const [{ data: ev }, { data: tickets }, { data: fields }, { data: cats }] = await Promise.all([db.from('events').select('*').eq('id', id).maybeSingle(), db.from('ticket_categories').select('*').eq('event_id', id).order('price'), db.from('event_form_fields').select('*').eq('event_id', id).order('sort_order'), db.from('event_categories').select('id,name').eq('is_active', true).order('name')]);
+if (!ev) return Astro.rewrite('/404');
+const next: Record<string, [string, string, string][]> = { draft: [['published', 'Publikasikan', 'Publikasikan event ini? Event akan tampil di katalog publik.'], ['archived', 'Arsipkan', 'Arsipkan event?']], published: [['registration_closed', 'Tutup pendaftaran', 'Tutup pendaftaran sekarang?'], ['archived', 'Arsipkan', 'Arsipkan event? Event hilang dari katalog.'], ['draft', 'Tarik ke draf', 'Kembalikan ke draf? Event hilang dari katalog.']], registration_closed: [['published', 'Buka kembali', 'Buka kembali pendaftaran?'], ['ongoing', 'Tandai berlangsung', 'Tandai event berlangsung?']], ongoing: [['completed', 'Tandai selesai', 'Tandai event selesai?']], completed: [['archived', 'Arsipkan', 'Arsipkan event?']], archived: [['draft', 'Kembalikan ke draf', 'Kembalikan ke draf?']] };
+---
+<PanelLayout title={ev.title} variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: 'Event', href: '/admin/dashboard/events' }, { label: ev.title }]}>
+  <div class="row between" style="margin-bottom:16px"><div class="row"><h1 style="margin:0">{ev.title}</h1><Badge status={ev.status} /></div>
+    <div class="row">{(next[ev.status] ?? []).map(([s, l, c]) => <button class="btn btn--secondary btn--sm" type="button" data-event-status={s} data-id={ev.id} data-confirm={c}>{l}</button>)}{ev.status !== 'draft' && <a class="btn btn--secondary btn--sm" href={`/events/${ev.slug}`} target="_blank" rel="noopener">Lihat halaman publik</a>}</div></div>
+  {Astro.url.searchParams.get('saved') && <div class="alert alert--ok" role="status" style="margin-bottom:16px">Event dibuat. Tambahkan kategori tiket lalu publikasikan.</div>}
+  <EventForm ev={ev} tickets={tickets ?? []} fields={fields ?? []} categories={cats ?? []} />
+</PanelLayout>

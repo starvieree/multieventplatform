@@ -1,0 +1,18 @@
+---
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import Badge from '../../../components/Badge.astro';
+import FormField from '../../../components/FormField.astro';
+import { adminDb } from '../../../lib/supabase/server';
+import { can } from '../../../lib/admin-resources';
+if (!can(Astro.locals, 'admins.manage')) return Astro.rewrite('/404');
+const { data } = await adminDb().from('user_roles').select('user_id, role:roles!inner(name), profile:profiles(full_name,email,account_status)').in('role.name', ['admin', 'super_admin']);
+const isSuper = Astro.locals.roles.includes('super_admin');
+---
+<PanelLayout title="Admin & hak akses" variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: 'Admin & hak akses' }]}>
+  <h1>Admin & hak akses</h1>
+  <div class="table-wrap" style="margin:16px 0"><table class="table"><caption class="sr-only">Daftar admin</caption><thead><tr><th scope="col">Nama</th><th scope="col">Email</th><th scope="col">Peran</th><th scope="col">Status</th><th scope="col">Aksi</th></tr></thead>
+    <tbody>{(data ?? []).map((r: any) => <tr><td>{r.profile?.full_name ?? '—'}</td><td>{r.profile?.email}</td><td>{r.role.name}</td><td><Badge status={r.profile?.account_status} /></td><td>{r.user_id !== Astro.locals.user?.id && (isSuper || r.role.name === 'admin') ? <button class="btn btn--secondary btn--sm" data-action={`/api/v1/admin/admins/${r.user_id}`} data-method="DELETE" data-body={JSON.stringify({ role: r.role.name })} data-confirm="Cabut peran ini?">Cabut</button> : '—'}</td></tr>)}</tbody></table></div>
+  <form class="form card card--pad" style="max-width:520px" data-json-form data-endpoint="/api/v1/admin/admins" data-success="Peran diberikan." data-redirect="/admin/dashboard/admins"><h2 style="font-size:1.2rem;margin:0">Tambah admin</h2>
+    <FormField name="email" type="email" label="Email akun terdaftar" required /><FormField name="role" type="select" label="Peran" required options={isSuper ? ['admin', 'super_admin'] : ['admin']} /><div data-feedback hidden></div><button class="btn" type="submit">Berikan peran</button></form>
+  <script>import '../../../scripts/json-form.ts'; import '../../../scripts/admin-actions.ts';</script>
+</PanelLayout>

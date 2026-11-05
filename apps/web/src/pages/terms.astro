@@ -1,0 +1,14 @@
+---
+import PublicLayout from '../layouts/PublicLayout.astro';
+import { adminDb } from '../lib/supabase/server';
+const { data } = await adminDb().from('app_settings').select('value').eq('key', 'policy').maybeSingle();
+const p = (data?.value ?? {}) as Record<string, string>;
+---
+<PublicLayout title="Syarat & ketentuan">
+  <section class="section"><div class="wrap prose"><h1>Syarat & ketentuan</h1>
+    <p class="muted">Teks final perlu ditinjau penasihat hukum Anda sebelum rilis.</p>
+    <h2>Pendaftaran dan kuota</h2><p>Kuota diamankan melalui antrean dan hanya berlaku selama batas waktu reservasi. Reservasi yang tidak dibayar dalam batas waktu dilepas otomatis.</p>
+    <h2>Pembayaran</h2><p>Pendaftaran berbayar dinyatakan terkonfirmasi setelah penyedia pembayaran mengirim notifikasi lunas yang tervalidasi. Halaman hasil pembayaran di browser bukan bukti pembayaran.</p>
+    <h2>Pembatalan</h2><p>{p.cancellation}</p><h2>Refund</h2><p>{p.refund}</p>
+    <h2>Akun</h2><p>Anda bertanggung jawab menjaga kerahasiaan akun. Akun dapat ditangguhkan bila ada penyalahgunaan.</p></div></section>
+</PublicLayout>

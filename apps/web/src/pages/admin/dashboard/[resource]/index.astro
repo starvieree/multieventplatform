@@ -1,0 +1,22 @@
+---
+import PanelLayout from '../../../../layouts/PanelLayout.astro';
+import DataTable from '../../../../components/DataTable.astro';
+import Pagination from '../../../../components/Pagination.astro';
+import StateBox from '../../../../components/StateBox.astro';
+import { adminDb } from '../../../../lib/supabase/server';
+import { RESOURCES, can, cleanSearch } from '../../../../lib/admin-resources';
+const res = RESOURCES[Astro.params.resource!];
+if (!res || !can(Astro.locals, res.perm)) return Astro.rewrite('/404');
+const sp = Astro.url.searchParams, page = Math.max(1, Number(sp.get('page') ?? 1) || 1), size = 15;
+let q = adminDb().from(res.table).select(res.select, { count: 'exact' });
+const s = cleanSearch(sp.get('q')); if (s) q = q.or(res.search.map((c) => `${c}.ilike.%${s}%`).join(','));
+const st = sp.get('status') ?? ''; if (st && res.statusCol && res.statusOptions?.includes(st)) q = q.eq(res.statusCol, st);
+const { data, count, error } = await q.order(res.order, { ascending: ['sort_order', 'name'].includes(res.order) }).range((page - 1) * size, page * size - 1);
+const cols = res.cols.map((c) => c.type === 'link' ? { ...c, href: (r: any) => `/admin/dashboard/${res.slug}/${r.id}` } : c);
+---
+<PanelLayout title={res.title} variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: res.title }]}>
+  <div class="row between"><h1>{res.title}</h1>{res.create && <a class="btn" href={`/admin/dashboard/${res.slug}/new`}>Tambah</a>}</div>
+  <form method="get" class="row" style="margin:16px 0" role="search"><div class="field"><label class="sr-only" for="q">Cari</label><input class="input" id="q" name="q" value={s} placeholder="Cari…" maxlength="80" /></div>
+    {res.statusOptions && <div class="field"><label class="sr-only" for="st">Status</label><select class="input" id="st" name="status"><option value="">Semua status</option>{res.statusOptions.map((o) => <option selected={o === st}>{o}</option>)}</select></div>}<button class="btn btn--secondary">Terapkan</button></form>
+  {error ? <StateBox kind="error" title="Data belum dapat dimuat" href={Astro.url.pathname} action="Coba lagi" /> : <><DataTable caption={res.title} cols={cols as any} rows={data ?? []} /><Pagination page={page} total={count ?? 0} pageSize={size} /></>}
+</PanelLayout>

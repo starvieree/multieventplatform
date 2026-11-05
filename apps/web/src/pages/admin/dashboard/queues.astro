@@ -1,0 +1,26 @@
+---
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import DataTable from '../../../components/DataTable.astro';
+import Badge from '../../../components/Badge.astro';
+import StatCard from '../../../components/StatCard.astro';
+import { adminDb } from '../../../lib/supabase/server';
+import { can } from '../../../lib/admin-resources';
+import { fmtDate } from '../../../lib/utils/format';
+if (!can(Astro.locals, 'queues.view')) return Astro.rewrite('/404');
+const db = adminDb(), status = Astro.url.searchParams.get('status') ?? '';
+const [{ data: sum }, { data: rows }] = await Promise.all([db.rpc('admin_summary', { p_from: new Date(Date.now() - 864e5).toISOString(), p_to: new Date().toISOString() }),
+  (status ? db.from('queue_requests').select('id,status,error_code,retry_count,quantity,queued_at,processed_at,event:events(title)').eq('status', status) : db.from('queue_requests').select('id,status,error_code,retry_count,quantity,queued_at,processed_at,event:events(title)')).order('queued_at', { ascending: false }).limit(50)]);
+const h = (sum as any)?.health ?? {}, manage = can(Astro.locals, 'queues.manage');
+const workerAge = h.worker_last_seen ? Math.round((Date.now() - +new Date(h.worker_last_seen)) / 1000) : null;
+const list = (rows ?? []).map((r: any) => ({ ...r, retry: manage && r.status === 'failed' }));
+---
+<PanelLayout title="Antrean" variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: 'Antrean' }]}>
+  <h1>Antrean pendaftaran</h1>
+  <div class="grid grid--4" style="margin:16px 0"><StatCard label="Menunggu" value={h.queue_queued ?? 0} /><StatCard label="Diproses" value={h.queue_processing ?? 0} /><StatCard label="Gagal (dead-letter)" value={h.queue_failed ?? 0} /><StatCard label="Outbox belum terkirim" value={h.outbox_pending ?? 0} /></div>
+  <p class="small">Worker: {workerAge !== null && workerAge < 60 ? <Badge status="active" label={`Aktif (${workerAge} dtk lalu)`} /> : <Badge status="failed" label={workerAge === null ? 'Belum terlihat' : 'Tidak aktif'} />}</p>
+  <form method="get" class="row" style="margin:16px 0"><label class="sr-only" for="s">Status</label><select class="input" id="s" name="status" style="max-width:240px"><option value="">Semua status</option>{['queued', 'processing', 'accepted', 'rejected', 'failed', 'expired'].map((s) => <option selected={s === status} value={s}>{s}</option>)}</select><button class="btn btn--secondary">Terapkan</button></form>
+  <div class="table-wrap"><table class="table"><caption class="sr-only">Permintaan antrean</caption><thead><tr><th scope="col">Event</th><th scope="col">Status</th><th scope="col">Jml</th><th scope="col">Percobaan</th><th scope="col">Masuk</th><th scope="col">Kode error</th><th scope="col">Aksi</th></tr></thead>
+    <tbody>{list.map((r: any) => <tr><td>{r.event?.title}</td><td><Badge status={r.status} /></td><td>{r.quantity}</td><td>{r.retry_count}</td><td>{fmtDate(r.queued_at, true)}</td><td>{r.error_code ?? '—'}</td><td>{r.retry ? <button class="btn btn--secondary btn--sm" data-action={`/api/v1/admin/queues/requests/${r.id}/retry`} data-confirm="Antrekan ulang permintaan ini? Prosesnya idempotent, tidak membuat reservasi ganda.">Retry</button> : '—'}</td></tr>)}</tbody></table></div>
+  {list.length === 0 && <div class="state" style="margin-top:16px" role="status"><h3>Tidak ada permintaan</h3></div>}
+  <script>import '../../../scripts/admin-actions.ts';</script>
+</PanelLayout>

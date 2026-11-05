@@ -1,0 +1,35 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Breadcrumb from '../components/Breadcrumb.astro';
+interface Props { title: string; variant: 'participant' | 'admin'; crumbs?: { label: string; href?: string }[]; }
+const { title, variant, crumbs = [] } = Astro.props;
+const path = Astro.url.pathname;
+const { permissions, roles } = Astro.locals;
+const can = (p?: string) => !p || roles.includes('super_admin') || permissions.includes(p);
+const P = [['Dashboard', '/dashboard'], ['Pendaftaran saya', '/dashboard/registrations'], ['Tiket saya', '/dashboard/tickets'], ['Notifikasi', '/dashboard/notifications'], ['Profil', '/dashboard/profile'], ['Keamanan', '/dashboard/profile/security']] as const;
+const A = [['Dashboard', '/admin/dashboard', ''], ['Event', '/admin/dashboard/events', 'events.manage'], ['Kategori', '/admin/dashboard/categories', 'categories.manage'], ['Peserta', '/admin/dashboard/participants', 'participants.view'],
+  ['Pendaftaran', '/admin/dashboard/registrations', 'registrations.view'], ['Transaksi', '/admin/dashboard/transactions', 'transactions.view'], ['Antrean', '/admin/dashboard/queues', 'queues.view'],
+  ['Partnership', '/admin/dashboard/partnerships', 'partnerships.manage'], ['Blog', '/admin/dashboard/blogs', 'blogs.manage'], ['Banner', '/admin/dashboard/banners', 'banners.manage'], ['Pesan', '/admin/dashboard/messages', 'messages.manage'],
+  ['Laporan', '/admin/dashboard/reports', 'reports.view'], ['Admin & hak akses', '/admin/dashboard/admins', 'admins.manage'], ['Audit log', '/admin/dashboard/audit-logs', 'audit.view'], ['Pengaturan', '/admin/dashboard/settings', 'settings.manage']] as const;
+const items = (variant === 'admin' ? A.filter((i) => can(i[2])) : P.map((i) => [...i, ''] as const));
+const active = (href: string) => (href === '/dashboard' || href === '/admin/dashboard' ? path === href : path === href || path.startsWith(href + '/')) && !(href === '/dashboard/profile' && path.startsWith('/dashboard/profile/security'));
+---
+<BaseLayout title={title} noindex>
+  <div class="panel" id="panel" data-open="false">
+    <aside class="panel__side" id="panel-side" aria-label={variant === 'admin' ? 'Menu admin' : 'Menu peserta'}>
+      <a class="logo" href="/"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#074ce0"/><path d="M9 11h14M9 16h14M9 21h8" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>Platform Event</a>
+      <nav>
+        {items.map(([label, href]) => <a href={href} aria-current={active(href) ? 'page' : undefined}>{label}</a>)}
+        <form method="post" action="/api/auth/signout"><button class="btn btn--secondary btn--sm" style="margin:16px 12px 0">Keluar</button></form>
+      </nav>
+    </aside>
+    <div class="panel__main">
+      <header class="panel__top">
+        <div class="row"><button class="btn btn--secondary btn--sm panel__toggle" type="button" aria-controls="panel-side" aria-expanded="false" id="panel-toggle">Menu</button><Breadcrumb items={crumbs} /></div>
+        <div class="row small"><a href={variant === 'admin' ? '/dashboard' : '/dashboard/notifications'}>{variant === 'admin' ? 'Dashboard peserta' : 'Notifikasi'}</a><span class="muted">{Astro.locals.user?.email}</span></div>
+      </header>
+      <main id="main" class="panel__content"><slot /></main>
+    </div>
+  </div>
+  <script>import '../scripts/nav.ts';</script>
+</BaseLayout>

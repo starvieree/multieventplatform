@@ -1,0 +1,13 @@
+---
+import PublicLayout from '../layouts/PublicLayout.astro';
+import FormField from '../components/FormField.astro';
+import Alert from '../components/Alert.astro';
+if (Astro.locals.user) return Astro.redirect('/dashboard');
+const err = { invalid: 'Periksa kembali nama, email, dan persetujuan Anda.', weak: 'Kata sandi minimal 10 karakter.', mismatch: 'Konfirmasi kata sandi tidak sama.', rate: 'Terlalu banyak percobaan. Coba lagi nanti.' }[Astro.url.searchParams.get('error') ?? ''];
+---
+<PublicLayout title="Daftar akun" noindex><section class="auth wrap"><div class="card"><h1 style="font-size:2rem">Buat akun</h1>{err && <Alert tone="bad">{err}</Alert>}
+  <form class="form" method="post" action="/api/auth/signup" style="margin-top:16px">
+    <FormField name="full_name" label="Nama lengkap" required autocomplete="name" /><FormField name="email" type="email" label="Email" required autocomplete="email" /><FormField name="phone" type="tel" label="Telepon" autocomplete="tel" />
+    <FormField name="password" type="password" label="Kata sandi" required autocomplete="new-password" hint="Minimal 10 karakter." /><FormField name="confirm" type="password" label="Ulangi kata sandi" required autocomplete="new-password" />
+    <FormField name="consent" type="checkbox" label="Saya menyetujui Syarat & ketentuan dan Kebijakan privasi." required /><button class="btn" type="submit">Buat akun</button></form>
+  <p class="small" style="margin:16px 0 0">Sudah punya akun? <a href="/login">Masuk</a></p></div></section></PublicLayout>

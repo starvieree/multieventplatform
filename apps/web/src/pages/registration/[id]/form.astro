@@ -1,0 +1,30 @@
+---
+import PublicLayout from '../../../layouts/PublicLayout.astro';
+import FormField from '../../../components/FormField.astro';
+import StateBox from '../../../components/StateBox.astro';
+import { fmtDate, rupiah } from '../../../lib/utils/format';
+const sb = Astro.locals.supabase;
+const { data: r } = await sb.from('registrations').select('id,registration_status,total_amount,quantity,event_id,event:events(title,slug),ticket:ticket_categories(name),reservations:quota_reservations(status,expires_at)').eq('id', Astro.params.id!).maybeSingle();
+if (!r) return Astro.rewrite('/404');
+if (!['draft', 'awaiting_payment'].includes(r.registration_status)) return Astro.redirect(`/registration/${r.id}/status`);
+const res = (r as any).reservations?.find((x: any) => x.status === 'reserved' && +new Date(x.expires_at) > Date.now());
+const [{ data: fields }, { data: answers }] = await Promise.all([
+  sb.from('event_form_fields').select('*').eq('event_id', r.event_id).eq('is_active', true).order('sort_order'),
+  sb.from('registration_answers').select('field_key,answer').eq('registration_id', r.id)]);
+const prev = Object.fromEntries((answers ?? []).map((a) => [a.field_key, a.answer]));
+const ev = (r as any).event;
+---
+<PublicLayout title="Formulir pendaftaran" noindex>
+  <section class="section"><div class="wrap" style="max-width:760px">
+    {!res ? <StateBox kind="error" title="Waktu reservasi sudah berakhir" text="Kuota Anda sudah dilepas. Silakan daftar ulang bila kuota masih tersedia." href={`/events/${ev.slug}`} action="Kembali ke event" /> : <>
+    <p class="meta">{ev.title} · {(r as any).ticket.name} × {r.quantity} · {rupiah(r.total_amount)}</p><h1 style="font-size:2.2rem">Lengkapi data pendaftaran</h1>
+    <div class="alert" role="timer" style="margin:12px 0">Selesaikan sebelum <b>{fmtDate(res.expires_at, true)}</b>. Sisa waktu: <b id="countdown" data-expires={res.expires_at}>—</b></div>
+    <form class="form card card--pad" id="reg-form" data-id={r.id}>
+      {(fields ?? []).map((f) => <FormField name={f.field_key} label={f.label} type={f.field_type === 'tel' || f.field_type === 'email' || f.field_type === 'number' || f.field_type === 'date' || f.field_type === 'checkbox' || f.field_type === 'select' || f.field_type === 'textarea' ? f.field_type : 'text'} value={prev[f.field_key] ?? ''} required={f.is_required} options={f.options ?? []} />)}
+      {(fields ?? []).length === 0 && <p class="muted">Event ini tidak membutuhkan data tambahan.</p>}
+      <div id="reg-msg" class="alert alert--bad" role="alert" hidden></div>
+      <button class="btn" type="submit" id="reg-btn">{r.total_amount > 0 ? 'Simpan dan lanjut ke pembayaran' : 'Selesaikan pendaftaran'}</button>
+    </form></>}
+  </div></section>
+  <script>import '../../../scripts/reg-form.ts';</script>
+</PublicLayout>

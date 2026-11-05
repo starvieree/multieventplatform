@@ -1,0 +1,26 @@
+---
+import PanelLayout from '../../layouts/PanelLayout.astro';
+import StatCard from '../../components/StatCard.astro';
+import Badge from '../../components/Badge.astro';
+import StateBox from '../../components/StateBox.astro';
+import { fmtDate, rupiah } from '../../lib/utils/format';
+import { nextAction } from '../../lib/utils/registration';
+const sb = Astro.locals.supabase;
+const [{ data: regs }, { count: tickets }, { data: notes }, { data: profile }] = await Promise.all([
+  sb.from('registrations').select('id,registration_code,registration_status,payment_status,total_amount,created_at,event:events(title,slug,start_at)').order('created_at', { ascending: false }).limit(20),
+  sb.from('tickets').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+  sb.from('notifications').select('id,title,body,created_at,read_at').order('created_at', { ascending: false }).limit(4),
+  sb.from('profiles').select('full_name').eq('id', Astro.locals.user!.id).maybeSingle(),
+]);
+const pending = (regs ?? []).filter((r) => ['draft', 'awaiting_payment'].includes(r.registration_status));
+const upcoming = (regs ?? []).filter((r: any) => r.registration_status === 'confirmed' && r.event && +new Date(r.event.start_at) > Date.now()).slice(0, 3);
+---
+<PanelLayout title="Dashboard" variant="participant" crumbs={[{ label: 'Dashboard' }]}>
+  <h1>Halo{profile?.full_name ? `, ${profile.full_name}` : ''}</h1>
+  <div class="grid grid--3" style="margin:20px 0 28px"><StatCard label="Perlu tindakan" value={pending.length} hint="Formulir atau pembayaran" /><StatCard label="Tiket aktif" value={tickets ?? 0} /><StatCard label="Total pendaftaran" value={regs?.length ?? 0} /></div>
+  {pending.length > 0 && <section aria-labelledby="p-h" style="margin-bottom:28px"><h2 id="p-h" style="font-size:1.4rem">Selesaikan pendaftaran</h2><div class="stack">{pending.map((r: any) => { const a = nextAction(r)!; return <div class="card card--pad row between"><div><b>{r.event?.title}</b><div class="meta">{r.registration_code} · {rupiah(r.total_amount)}</div></div><div class="row"><Badge status={r.registration_status} /><a class="btn btn--sm" href={a.href}>{a.label}</a></div></div>; })}</div></section>}
+  <div class="grid grid--2" style="align-items:start">
+    <section class="card card--pad"><h2 style="font-size:1.3rem">Event mendatang</h2>{upcoming.length ? <ul class="stack" style="list-style:none;padding:0">{upcoming.map((r: any) => <li><a href={`/dashboard/registrations/${r.id}`}>{r.event.title}</a><div class="meta">{fmtDate(r.event.start_at, true)}</div></li>)}</ul> : <StateBox title="Belum ada event mendatang" text="Event yang sudah terkonfirmasi tampil di sini." href="/events" action="Cari event" />}</section>
+    <section class="card card--pad"><h2 style="font-size:1.3rem">Notifikasi terbaru</h2>{notes?.length ? <ul class="stack" style="list-style:none;padding:0">{notes.map((n) => <li><b>{n.title}</b>{!n.read_at && <> <span class="badge badge--ok">Baru</span></>}<div class="meta">{n.body} · {fmtDate(n.created_at, true)}</div></li>)}</ul> : <p class="muted">Belum ada notifikasi.</p>}<a href="/dashboard/notifications" class="small">Lihat semua</a></section>
+  </div>
+</PanelLayout>

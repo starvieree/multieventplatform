@@ -1,0 +1,13 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+interface Props { title: string; description?: string; noindex?: boolean; image?: string | null; jsonLd?: object | null; dark?: boolean; }
+const props = Astro.props;
+---
+<BaseLayout {...props}>
+  <Navbar user={Astro.locals.user} path={Astro.url.pathname} />
+  <main id="main"><slot /></main>
+  <Footer />
+  <script>import '../scripts/nav.ts';</script>
+</BaseLayout>

@@ -1,0 +1,50 @@
+---
+import EventRows from './EventRows.astro';
+import FormField from './FormField.astro';
+import { toInputDateTime, mediaUrl } from '../lib/utils/format';
+interface Props { ev?: Record<string, any> | null; tickets?: any[]; fields?: any[]; categories: { id: string; name: string }[] }
+const { ev = null, tickets = [], fields = [], categories } = Astro.props;
+const e = ev ?? { event_type: 'offline', max_per_user: 1, total_quota: 0, faq: [] };
+const tabs = [['dasar', 'Informasi dasar'], ['media', 'Media'], ['jadwal', 'Jadwal'], ['lokasi', 'Lokasi'], ['tiket', 'Kuota & tiket'], ['formulir', 'Formulir pendaftaran'], ['faq', 'FAQ & SEO']];
+const img = (name: string, label: string, hint?: string) => ({ name, label, hint });
+---
+<form id="event-form" data-id={ev?.id ?? ''} novalidate>
+  <div class="tabs" role="tablist" aria-label="Bagian formulir event">{tabs.map(([k, l], i) => <button type="button" role="tab" id={`tab-${k}`} aria-controls={`p-${k}`} aria-selected={i === 0} tabindex={i === 0 ? 0 : -1}>{l}</button>)}</div>
+
+  <section role="tabpanel" id="p-dasar" aria-labelledby="tab-dasar" class="form card card--pad">
+    <FormField name="title" label="Judul event" value={e.title} required /><FormField name="slug" label="Slug" value={e.slug} required hint="Huruf kecil, angka, tanda hubung. Dipakai pada URL /events/slug." />
+    <FormField name="category_id" type="select" label="Kategori" value={e.category_id} options={categories.map((c) => ({ value: c.id, label: c.name }))} /><FormField name="organizer_name" label="Penyelenggara" value={e.organizer_name} />
+    <FormField name="event_type" type="select" label="Tipe event" required value={e.event_type} options={[{ value: 'offline', label: 'Offline' }, { value: 'online', label: 'Online' }, { value: 'hybrid', label: 'Hybrid' }]} />
+    <FormField name="summary" type="textarea" rows={2} label="Ringkasan" value={e.summary} /><FormField name="description" type="textarea" rows={8} label="Deskripsi lengkap" value={e.description} />
+  </section>
+  <section role="tabpanel" id="p-media" aria-labelledby="tab-media" class="form card card--pad" hidden>
+    {[img('poster_path', 'Poster'), img('banner_path', 'Banner'), img('og_image_path', 'Gambar Open Graph', 'Dipakai saat tautan dibagikan.')].map((f) => <div class="field" data-upload>
+      <label for={`f-${f.name}`}>{f.label}</label><div class="row"><input class="input" style="flex:1" id={`f-${f.name}`} name={f.name} value={e[f.name] ?? ''} readonly /><label class="btn btn--secondary btn--sm" style="margin:0">Unggah<input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" data-file /></label></div>
+      <div class="hint">{f.hint ?? 'JPG, PNG, atau WebP, maksimal 2 MB.'}</div>{mediaUrl(e[f.name]) && <img src={mediaUrl(e[f.name])!} alt="" width="160" height="90" style="margin-top:8px;border-radius:8px;filter:grayscale(1)" data-preview />}</div>)}
+    <FormField name="poster_alt" label="Teks alternatif poster" value={e.poster_alt} hint="Jelaskan isi poster untuk pembaca layar." />
+  </section>
+  <section role="tabpanel" id="p-jadwal" aria-labelledby="tab-jadwal" class="form form--2 card card--pad" hidden>
+    <FormField name="start_at" type="datetime-local" label="Event mulai (WIB)" value={toInputDateTime(e.start_at)} required /><FormField name="end_at" type="datetime-local" label="Event selesai (WIB)" value={toInputDateTime(e.end_at)} required />
+    <FormField name="registration_opens_at" type="datetime-local" label="Pendaftaran dibuka (WIB)" value={toInputDateTime(e.registration_opens_at)} required /><FormField name="registration_closes_at" type="datetime-local" label="Pendaftaran ditutup (WIB)" value={toInputDateTime(e.registration_closes_at)} required />
+  </section>
+  <section role="tabpanel" id="p-lokasi" aria-labelledby="tab-lokasi" class="form card card--pad" hidden>
+    <FormField name="venue_name" label="Nama tempat" value={e.venue_name} /><FormField name="address" type="textarea" rows={2} label="Alamat" value={e.address} /><FormField name="online_url" type="url" label="Tautan online" value={e.online_url} hint="Untuk event online/hybrid." />
+  </section>
+  <section role="tabpanel" id="p-tiket" aria-labelledby="tab-tiket" class="stack" hidden>
+    <div class="form form--2 card card--pad"><FormField name="total_quota" type="number" min={0} label="Kuota total event" value={e.total_quota} required hint="Tidak dapat diturunkan di bawah jumlah yang sudah direservasi/terkonfirmasi." /><FormField name="max_per_user" type="number" min={1} max={20} label="Maks. tiket per akun" value={e.max_per_user} required /></div>
+    <div id="ticket-list" class="stack">{tickets.map((t) => <EventRows kind="ticket" d={t} />)}</div>
+    <button class="btn btn--secondary" type="button" data-add="ticket">Tambah kategori tiket</button>
+  </section>
+  <section role="tabpanel" id="p-formulir" aria-labelledby="tab-formulir" class="stack" hidden>
+    <p class="muted small">Field tambahan yang diisi peserta setelah kuota diamankan. Validasi dijalankan di server.</p>
+    <div id="field-list" class="stack">{fields.map((f) => <EventRows kind="field" d={f} />)}</div><button class="btn btn--secondary" type="button" data-add="field">Tambah field</button>
+  </section>
+  <section role="tabpanel" id="p-faq" aria-labelledby="tab-faq" class="stack" hidden>
+    <div class="form card card--pad"><FormField name="requirements" type="textarea" rows={3} label="Persyaratan peserta" value={e.requirements} /><FormField name="meta_title" label="Meta title" value={e.meta_title} /><FormField name="meta_description" type="textarea" rows={2} label="Meta description" value={e.meta_description} /></div>
+    <div id="faq-list" class="stack">{(Array.isArray(e.faq) ? e.faq : []).map((f: any) => <EventRows kind="faq" d={f} />)}</div><button class="btn btn--secondary" type="button" data-add="faq">Tambah FAQ</button>
+  </section>
+
+  <div style="margin-top:20px" class="stack"><div id="ev-msg" class="alert" role="status" hidden></div><div class="row"><button class="btn" type="submit" id="ev-save">Simpan event</button><a class="btn btn--secondary" href="/admin/dashboard/events">Kembali</a></div></div>
+  <template id="tpl-ticket"><EventRows kind="ticket" /></template><template id="tpl-field"><EventRows kind="field" /></template><template id="tpl-faq"><EventRows kind="faq" /></template>
+</form>
+<script>import '../scripts/event-form.ts'; import '../scripts/upload.ts';</script>

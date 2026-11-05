@@ -1,0 +1,28 @@
+---
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import StatCard from '../../../components/StatCard.astro';
+import Badge from '../../../components/Badge.astro';
+import { adminDb } from '../../../lib/supabase/server';
+import { fmtDate, rupiah } from '../../../lib/utils/format';
+const days = [7, 30, 90].includes(Number(Astro.url.searchParams.get('days'))) ? Number(Astro.url.searchParams.get('days')) : 30;
+const { data: s, error } = await adminDb().rpc('admin_summary', { p_from: new Date(Date.now() - days * 864e5).toISOString(), p_to: new Date().toISOString() });
+const d = (s ?? {}) as any, h = d.health ?? {};
+const series: { day: string; count: number }[] = d.registrations_by_day ?? [];
+const max = Math.max(1, ...series.map((x) => x.count));
+const workerAge = h.worker_last_seen ? Math.round((Date.now() - +new Date(h.worker_last_seen)) / 1000) : null;
+const workerOk = workerAge !== null && workerAge < 60;
+---
+<PanelLayout title="Dashboard admin" variant="admin" crumbs={[{ label: 'Admin' }, { label: 'Dashboard' }]}>
+  <div class="row between"><h1>Dashboard</h1><form method="get" class="row"><label class="sr-only" for="d">Rentang</label><select class="input" id="d" name="days">{[7, 30, 90].map((n) => <option value={n} selected={n === days}>{n} hari terakhir</option>)}</select><button class="btn btn--secondary btn--sm">Terapkan</button></form></div>
+  {error ? <div class="alert alert--bad" role="alert" style="margin-top:16px">Ringkasan belum dapat dimuat.</div> : <>
+  <div class="grid grid--4" style="margin:20px 0"><StatCard label="Event aktif" value={d.events ?? 0} /><StatCard label="Peserta terdaftar" value={d.participants ?? 0} /><StatCard label={`Pendaftaran (${days} hari)`} value={d.registrations ?? 0} hint={`${d.confirmed ?? 0} terkonfirmasi`} /><StatCard label="Pendapatan lunas" value={rupiah(d.revenue_paid ?? 0)} hint="Hanya transaksi paid" /></div>
+  <div class="grid grid--2" style="align-items:start">
+    <section class="card card--pad"><h2 style="font-size:1.2rem">Pendaftaran per hari</h2>{series.length ? <div class="bars" role="img" aria-label={`Grafik pendaftaran per hari, total ${d.registrations}`}>{series.map((x) => <i style={`height:${Math.max(2, (x.count / max) * 100)}%`} title={`${fmtDate(x.day)}: ${x.count}`}></i>)}</div> : <p class="muted">Belum ada data pada rentang ini.</p>}</section>
+    <section class="card card--pad"><h2 style="font-size:1.2rem">Event terpopuler</h2>{(d.top_events ?? []).length ? <ol style="padding-left:18px;margin:0">{d.top_events.map((e: any) => <li>{e.title} <span class="meta">· {e.confirmed} terkonfirmasi</span></li>)}</ol> : <p class="muted">Belum ada pendaftaran terkonfirmasi.</p>}</section>
+    <section class="card card--pad"><h2 style="font-size:1.2rem">Kesehatan sistem</h2>
+      <dl class="kv"><dt>Database</dt><dd><Badge status="active" label="OK" /></dd><dt>Worker</dt><dd>{workerOk ? <Badge status="active" label={`Aktif (${workerAge} dtk lalu)`} /> : <Badge status="failed" label={workerAge === null ? 'Belum pernah terlihat' : `Tidak aktif (${Math.round(workerAge / 60)} mnt)`} />}</dd>
+        <dt>Antrean menunggu</dt><dd>{h.queue_queued ?? 0} · diproses {h.queue_processing ?? 0}</dd><dt>Antrean gagal</dt><dd>{h.queue_failed ? <a href="/admin/dashboard/queues">{h.queue_failed} perlu ditinjau</a> : '0'}</dd><dt>Outbox belum terkirim</dt><dd>{h.outbox_pending ?? 0}</dd>
+        <dt>Webhook valid terakhir</dt><dd>{fmtDate(h.webhook_last_valid, true)}</dd><dt>Signature invalid (24 jam)</dt><dd>{h.webhook_invalid_24h ?? 0}</dd><dt>Transaksi pending lewat batas</dt><dd>{h.stale_pending_tx ?? 0}</dd></dl></section>
+    <section class="card card--pad"><h2 style="font-size:1.2rem">Aktivitas terbaru</h2>{(d.recent_activity ?? []).length ? <ul class="stack" style="list-style:none;padding:0">{d.recent_activity.map((a: any) => <li><b class="small">{a.action}</b> <span class="meta">{a.resource_type} · {fmtDate(a.created_at, true)}</span></li>)}</ul> : <p class="muted">Belum ada aktivitas.</p>}</section>
+  </div></>}
+</PanelLayout>

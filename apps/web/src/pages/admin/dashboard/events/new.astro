@@ -1,0 +1,9 @@
+---
+import PanelLayout from '../../../../layouts/PanelLayout.astro';
+import EventForm from '../../../../components/EventForm.astro';
+import { adminDb } from '../../../../lib/supabase/server';
+import { can } from '../../../../lib/admin-resources';
+if (!can(Astro.locals, 'events.manage')) return Astro.rewrite('/404');
+const { data: cats } = await adminDb().from('event_categories').select('id,name').eq('is_active', true).order('name');
+---
+<PanelLayout title="Event baru" variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: 'Event', href: '/admin/dashboard/events' }, { label: 'Baru' }]}><h1 style="margin-bottom:16px">Event baru</h1><EventForm categories={cats ?? []} /></PanelLayout>

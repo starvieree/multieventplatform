@@ -1,0 +1,6 @@
+---
+import PublicLayout from '../layouts/PublicLayout.astro';
+import StateBox from '../components/StateBox.astro';
+Astro.response.status = 404;
+---
+<PublicLayout title="Halaman tidak ditemukan" noindex><section class="section"><div class="wrap"><StateBox title="Halaman tidak ditemukan" text="Alamat yang Anda buka tidak ada atau sudah dipindahkan." href="/" action="Kembali ke beranda" /></div></section></PublicLayout>

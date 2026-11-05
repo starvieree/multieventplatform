@@ -1,0 +1,11 @@
+---
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import FormField from '../../../components/FormField.astro';
+import Alert from '../../../components/Alert.astro';
+const sp = Astro.url.searchParams;
+const err = { weak: 'Kata sandi minimal 10 karakter.', mismatch: 'Konfirmasi kata sandi tidak sama.', failed: 'Kata sandi belum dapat diubah.' }[sp.get('error') ?? ''];
+---
+<PanelLayout title="Keamanan akun" variant="participant" crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Keamanan' }]}>
+  <h1>Keamanan akun</h1>{sp.get('updated') && <Alert tone="ok">Kata sandi berhasil diubah.</Alert>}{err && <Alert tone="bad">{err}</Alert>}
+  <form class="form card card--pad" style="max-width:560px;margin-top:16px" method="post" action="/api/auth/reset"><FormField name="password" type="password" label="Kata sandi baru" required autocomplete="new-password" hint="Minimal 10 karakter." /><FormField name="confirm" type="password" label="Ulangi kata sandi baru" required autocomplete="new-password" /><button class="btn" type="submit">Ubah kata sandi</button></form>
+</PanelLayout>

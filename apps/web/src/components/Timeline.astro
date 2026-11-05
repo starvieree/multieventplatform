@@ -1,0 +1,4 @@
+---
+interface Props { steps: { title: string; text?: string; done: boolean }[] }
+---
+<ol class="timeline">{Astro.props.steps.map((s) => <li data-done={s.done}><b>{s.title}</b>{s.text && <div class="meta">{s.text}</div>}</li>)}</ol>

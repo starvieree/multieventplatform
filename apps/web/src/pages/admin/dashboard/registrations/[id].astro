@@ -1,0 +1,23 @@
+---
+import PanelLayout from '../../../../layouts/PanelLayout.astro';
+import Badge from '../../../../components/Badge.astro';
+import DataTable from '../../../../components/DataTable.astro';
+import { adminDb } from '../../../../lib/supabase/server';
+import { can } from '../../../../lib/admin-resources';
+import { fmtDate, rupiah } from '../../../../lib/utils/format';
+if (!can(Astro.locals, 'registrations.view') || !/^[0-9a-f-]{36}$/i.test(Astro.params.id!)) return Astro.rewrite('/404');
+const { data: r } = await adminDb().from('registrations').select('*, event:events(title,slug), profile:profiles(id,full_name,email,phone), ticket:ticket_categories(name), transactions(id,order_id,transaction_status,gross_amount,payment_type,paid_at,created_at), answers:registration_answers(field_label_snapshot,answer), tickets(ticket_code,status), reservations:quota_reservations(status,expires_at,release_reason), queue:queue_requests(id,status,queued_at,processed_at)').eq('id', Astro.params.id!).maybeSingle();
+if (!r) return Astro.rewrite('/404');
+const x = r as any, canAdjust = can(Astro.locals, 'registrations.adjust'), cancellable = ['draft', 'awaiting_payment'].includes(r.registration_status) && r.payment_status !== 'paid';
+---
+<PanelLayout title={`Pendaftaran ${r.registration_code}`} variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: 'Pendaftaran', href: '/admin/dashboard/registrations' }, { label: r.registration_code }]}>
+  <div class="row between"><h1>{r.registration_code}</h1><div class="row"><Badge status={r.registration_status} /><Badge status={r.payment_status} />{canAdjust && cancellable && <button class="btn btn--danger btn--sm" data-action={`/api/v1/admin/registrations/${r.id}/adjust`} data-body='{"action":"cancel_unpaid"}' data-reason="Alasan pembatalan (wajib, dicatat di audit log):" data-confirm="Batalkan pendaftaran belum dibayar ini dan lepaskan kuota?">Batalkan pendaftaran</button>}</div></div>
+  <div class="grid grid--2" style="margin-top:20px;align-items:start">
+    <section class="card card--pad"><h2 style="font-size:1.2rem">Ringkasan</h2><dl class="kv"><dt>Event</dt><dd>{x.event?.title}</dd><dt>Peserta</dt><dd><a href={`/admin/dashboard/participants/${x.profile?.id}`}>{x.profile?.full_name ?? '—'}</a><div class="meta">{x.profile?.email}</div></dd><dt>Tiket</dt><dd>{x.ticket?.name} × {r.quantity}</dd><dt>Total</dt><dd>{rupiah(r.total_amount)}</dd><dt>Dibuat</dt><dd>{fmtDate(r.created_at, true)}</dd><dt>Catatan admin</dt><dd>{r.admin_note ?? '—'}</dd></dl></section>
+    <section class="card card--pad"><h2 style="font-size:1.2rem">Antrean & reservasi</h2><dl class="kv"><dt>Antrean</dt><dd>{x.queue ? <><Badge status={x.queue.status} /> <span class="meta">{fmtDate(x.queue.queued_at, true)}</span></> : '—'}</dd>{(x.reservations ?? []).map((v: any) => <><dt>Reservasi</dt><dd><Badge status={v.status} /> <span class="meta">sampai {fmtDate(v.expires_at, true)}{v.release_reason ? ` · ${v.release_reason}` : ''}</span></dd></>)}<dt>Tiket terbit</dt><dd>{(x.tickets ?? []).map((t: any) => t.ticket_code).join(', ') || '—'}</dd></dl></section>
+    <section class="card card--pad"><h2 style="font-size:1.2rem">Jawaban formulir</h2>{(x.answers ?? []).length ? <dl class="kv">{x.answers.map((a: any) => <><dt>{a.field_label_snapshot}</dt><dd>{typeof a.answer === 'boolean' ? (a.answer ? 'Ya' : 'Tidak') : String(a.answer ?? '—')}</dd></>)}</dl> : <p class="muted">Belum diisi.</p>}</section>
+    <section class="card card--pad"><h2 style="font-size:1.2rem">Transaksi</h2><DataTable caption="Transaksi" empty="Belum ada transaksi" rows={x.transactions ?? []} cols={[{ key: 'order_id', label: 'Order', type: 'link', href: (t: any) => `/admin/dashboard/transactions/${t.id}` }, { key: 'transaction_status', label: 'Status', type: 'badge' }, { key: 'gross_amount', label: 'Nominal', type: 'money' }]} /></section>
+  </div>
+  {canAdjust && <section class="card card--pad" style="margin-top:20px;max-width:560px"><h2 style="font-size:1.2rem">Catatan admin</h2><button class="btn btn--secondary btn--sm" data-action={`/api/v1/admin/registrations/${r.id}/adjust`} data-body='{"action":"note"}' data-reason="Isi catatan:">Ubah catatan</button><p class="meta" style="margin:10px 0 0">Status pembayaran tidak dapat diubah manual; hanya Midtrans yang menentukan lunas.</p></section>}
+  <script>import '../../../../scripts/admin-actions.ts';</script>
+</PanelLayout>

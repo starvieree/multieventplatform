@@ -1,0 +1,28 @@
+---
+interface Props { user: { email?: string } | null; path: string }
+const { user, path } = Astro.props;
+const cur = (h: string) => (h === '/' ? path === '/' : path === h || path.startsWith(h + '/')) ? 'page' : undefined;
+---
+<header class="nav" id="nav" data-open="false">
+  <div class="wrap nav__in">
+    <a class="logo" href="/"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#074ce0"/><path d="M9 11h14M9 16h14M9 21h8" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>Platform Event</a>
+    <button class="nav__toggle" type="button" id="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Toggle navigasi">
+      <span class="nav__toggle-bar"></span>
+      <span class="nav__toggle-bar"></span>
+      <span class="nav__toggle-bar"></span>
+    </button>
+    <ul class="nav__links" id="nav-links">
+      <li><a href="/" aria-current={cur('/')}>Beranda</a></li>
+      <li><a href="/tentang" aria-current={cur('/tentang')}>Tentang</a></li>
+      <li class="nav__drop"><details><summary>Event</summary>
+        <ul class="nav__menu"><li><a href="/events">Semua</a></li><li><a href="/events?status=published">Mendatang</a></li><li><a href="/events?price_type=free">Gratis</a></li><li><a href="/events?price_type=paid">Berbayar</a></li></ul></details></li>
+      <li><a href="/partnership" aria-current={cur('/partnership')}>Partnership</a></li>
+      <li><a href="/blog" aria-current={cur('/blog')}>Blog</a></li>
+      <li><a href="/kontak" aria-current={cur('/kontak')}>Kontak</a></li>
+    </ul>
+    <div class="nav__cta">
+      {user ? <><a class="btn" href="/dashboard">Dashboard</a><form method="post" action="/api/auth/signout"><button class="btn btn--secondary">Keluar</button></form></>
+            : <><a class="btn" href="/register">Daftar</a><a class="btn btn--secondary" href="/login">Masuk</a></>}
+    </div>
+  </div>
+</header>

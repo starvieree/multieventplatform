@@ -1,0 +1,18 @@
+---
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import DataTable from '../../../components/DataTable.astro';
+import Pagination from '../../../components/Pagination.astro';
+import StateBox from '../../../components/StateBox.astro';
+const sb = Astro.locals.supabase, sp = Astro.url.searchParams;
+const status = ['draft', 'awaiting_payment', 'confirmed', 'cancelled', 'expired'].includes(sp.get('status') ?? '') ? sp.get('status')! : '';
+const page = Math.max(1, Number(sp.get('page') ?? 1) || 1), size = 10;
+let q = sb.from('registrations').select('id,registration_code,registration_status,payment_status,total_amount,created_at,event:events(title)', { count: 'exact' });
+if (status) q = q.eq('registration_status', status);
+const { data, count, error } = await q.order('created_at', { ascending: false }).range((page - 1) * size, page * size - 1);
+---
+<PanelLayout title="Pendaftaran saya" variant="participant" crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Pendaftaran' }]}>
+  <h1>Pendaftaran saya</h1>
+  <form method="get" class="row" style="margin:16px 0"><div class="field"><label class="sr-only" for="s">Status</label><select class="input" id="s" name="status"><option value="">Semua status</option>{[['draft', 'Draf'], ['awaiting_payment', 'Menunggu pembayaran'], ['confirmed', 'Terkonfirmasi'], ['cancelled', 'Dibatalkan'], ['expired', 'Kedaluwarsa']].map(([v, l]) => <option value={v} selected={v === status}>{l}</option>)}</select></div><button class="btn btn--secondary">Terapkan</button></form>
+  {error ? <StateBox kind="error" title="Data belum dapat dimuat" href="/dashboard/registrations" action="Coba lagi" /> :
+  <><DataTable caption="Daftar pendaftaran" empty="Belum ada pendaftaran" rows={data ?? []} cols={[{ key: 'registration_code', label: 'Kode', type: 'link', href: (r) => `/dashboard/registrations/${r.id}` }, { key: 'event.title', label: 'Event' }, { key: 'registration_status', label: 'Status', type: 'badge' }, { key: 'payment_status', label: 'Pembayaran', type: 'badge' }, { key: 'total_amount', label: 'Total', type: 'money' }, { key: 'created_at', label: 'Dibuat', type: 'date' }]} /><Pagination page={page} total={count ?? 0} pageSize={size} /></>}
+</PanelLayout>

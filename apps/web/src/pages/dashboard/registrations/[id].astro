@@ -1,0 +1,22 @@
+---
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import Badge from '../../../components/Badge.astro';
+import Timeline from '../../../components/Timeline.astro';
+import { fmtDate, rupiah } from '../../../lib/utils/format';
+import { nextAction, timeline } from '../../../lib/utils/registration';
+const { data: r } = await Astro.locals.supabase.from('registrations').select('*, event:events(title,slug,start_at,end_at,venue_name,address), ticket:ticket_categories(name), transactions(order_id,transaction_status,payment_type,gross_amount,paid_at,created_at), answers:registration_answers(field_label_snapshot,answer), tickets(id,ticket_code,status), reservations:quota_reservations(status,expires_at)').eq('id', Astro.params.id!).maybeSingle();
+if (!r) return Astro.rewrite('/404');
+const a = nextAction(r as any);
+const res = (r as any).reservations?.find((x: any) => x.status === 'reserved');
+---
+<PanelLayout title={`Pendaftaran ${r.registration_code}`} variant="participant" crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Pendaftaran', href: '/dashboard/registrations' }, { label: r.registration_code }]}>
+  <div class="row between"><h1>{r.event?.title}</h1><div class="row"><Badge status={r.registration_status} /><Badge status={r.payment_status} /></div></div>
+  {a && <div class="alert" style="margin:12px 0">{res ? `Reservasi berlaku sampai ${fmtDate(res.expires_at, true)}. ` : ''}<a class="btn btn--sm" href={a.href}>{a.label}</a></div>}
+  <div class="grid grid--2" style="align-items:start;margin-top:16px">
+    <section class="card card--pad"><h2 style="font-size:1.3rem">Ringkasan</h2><dl class="kv"><dt>Kode</dt><dd>{r.registration_code}</dd><dt>Tiket</dt><dd>{r.ticket?.name} × {r.quantity}</dd><dt>Total</dt><dd>{rupiah(r.total_amount)}</dd><dt>Waktu event</dt><dd>{fmtDate(r.event?.start_at, true)}</dd><dt>Lokasi</dt><dd>{r.event?.venue_name ?? '—'}</dd></dl></section>
+    <section class="card card--pad"><h2 style="font-size:1.3rem">Progres</h2><Timeline steps={timeline(r as any, ((r as any).tickets ?? []).length > 0)} /></section>
+    <section class="card card--pad"><h2 style="font-size:1.3rem">Riwayat pembayaran</h2>{((r as any).transactions ?? []).length ? <ul class="stack" style="list-style:none;padding:0">{(r as any).transactions.map((t: any) => <li><Badge status={t.transaction_status} /> <span class="meta">{rupiah(t.gross_amount)} · {t.payment_type ?? '—'} · {fmtDate(t.created_at, true)}</span></li>)}</ul> : <p class="muted">Belum ada transaksi.</p>}</section>
+    <section class="card card--pad"><h2 style="font-size:1.3rem">Data pendaftaran</h2>{((r as any).answers ?? []).length ? <dl class="kv">{(r as any).answers.map((x: any) => <><dt>{x.field_label_snapshot}</dt><dd>{typeof x.answer === 'boolean' ? (x.answer ? 'Ya' : 'Tidak') : String(x.answer ?? '—')}</dd></>)}</dl> : <p class="muted">Formulir belum diisi.</p>}</section>
+  </div>
+  {((r as any).tickets ?? []).length > 0 && <section style="margin-top:20px"><h2 style="font-size:1.3rem">Tiket</h2><div class="row">{(r as any).tickets.map((t: any) => <a class="btn btn--secondary" href={`/dashboard/tickets/${t.id}`}>{t.ticket_code}</a>)}</div></section>}
+</PanelLayout>

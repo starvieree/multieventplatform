@@ -1,0 +1,12 @@
+---
+interface Props { page: number; total: number; pageSize: number }
+const { page, total, pageSize } = Astro.props;
+const pages = Math.max(1, Math.ceil(total / pageSize));
+const href = (p: number) => { const u = new URL(Astro.url); u.searchParams.set('page', String(p)); return u.pathname + u.search; };   // mempertahankan query filter
+const list = Array.from({ length: pages }, (_, i) => i + 1).filter((p) => p === 1 || p === pages || Math.abs(p - page) <= 1);
+---
+{pages > 1 && <nav class="pager" aria-label="Halaman">
+  {page > 1 && <a href={href(page - 1)} rel="prev">Sebelumnya</a>}
+  {list.map((p, i) => <>{i > 0 && p - list[i - 1] > 1 && <span aria-hidden="true">…</span>}{p === page ? <span aria-current="page">{p}</span> : <a href={href(p)} aria-label={`Halaman ${p}`}>{p}</a>}</>)}
+  {page < pages && <a href={href(page + 1)} rel="next">Berikutnya</a>}
+</nav>}

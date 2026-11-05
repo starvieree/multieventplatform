@@ -1,0 +1,15 @@
+---
+// Diagram produk: beberapa masukan (katalog, antrean, kuota, pembayaran) bertemu di satu pusat; statis, tanpa animasi.
+const tiles = [{ x: 30, y: 60, t: 'Katalog' }, { x: 300, y: 40, t: 'Antrean' }, { x: 20, y: 330, t: 'Kuota' }, { x: 305, y: 335, t: 'Pembayaran' }];
+---
+<svg class="diagram" viewBox="0 0 440 440" role="img" aria-labelledby="dg-t dg-d">
+  <title id="dg-t">Alur pendaftaran</title><desc id="dg-d">Katalog, antrean, kuota, dan pembayaran bertemu di satu tiket.</desc>
+  <defs><linearGradient id="dg-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2f6bff"/><stop offset="1" stop-color="#063fb8"/></linearGradient></defs>
+  <circle cx="220" cy="220" r="190" fill="none" stroke="#dde0e6"/><circle cx="220" cy="220" r="130" fill="none" stroke="#dde0e6"/>
+  {tiles.map((t) => <line x1={t.x + 55} y1={t.y + 24} x2="220" y2="220" stroke="#b8c4dd" stroke-width="1.5" />)}
+  <rect x="160" y="160" width="120" height="120" rx="26" fill="url(#dg-g)"/><rect x="161" y="161" width="118" height="118" rx="25" fill="none" stroke="#fff" stroke-opacity=".25"/>
+  <path d="M190 205h60M190 220h60M190 235h36" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+  {tiles.map((t) => <g><rect x={t.x} y={t.y} width="110" height="48" rx="12" fill="#fff" stroke="#dde0e6"/><text x={t.x + 55} y={t.y + 29} text-anchor="middle" font-family="Instrument Sans, sans-serif" font-size="14" font-weight="600" fill="#16191f">{t.t}</text></g>)}
+  <g><rect x="165" y="375" width="110" height="40" rx="10" fill="#fff" stroke="#074ce0"/><text x="220" y="400" text-anchor="middle" font-family="Instrument Sans, sans-serif" font-size="14" font-weight="700" fill="#074ce0">Tiket terbit</text></g>
+  <line x1="220" y1="280" x2="220" y2="375" stroke="#074ce0" stroke-width="1.5"/>
+</svg>

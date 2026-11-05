@@ -1,0 +1,18 @@
+---
+import Badge from './Badge.astro';
+import { fmtDate, rupiah } from '../lib/utils/format';
+export interface Col { key: string; label: string; type?: 'text' | 'date' | 'datetime' | 'money' | 'badge' | 'link'; href?: (row: any) => string }
+interface Props { cols: Col[]; rows: any[]; caption: string; empty?: string }
+const { cols, rows, caption, empty = 'Belum ada data.' } = Astro.props;
+const get = (row: any, key: string) => key.split('.').reduce((o, k) => (o == null ? o : o[k]), row);
+---
+{rows.length === 0 ? <div class="state" role="status"><h3>{empty}</h3></div> :
+<div class="table-wrap" tabindex="0" role="region" aria-label={caption}>
+  <table class="table"><caption class="sr-only">{caption}</caption>
+    <thead><tr>{cols.map((c) => <th scope="col">{c.label}</th>)}</tr></thead>
+    <tbody>{rows.map((r) => <tr>{cols.map((c) => {
+      const v = get(r, c.key);
+      return <td>{c.type === 'badge' ? <Badge status={v} /> : c.type === 'date' ? fmtDate(v) : c.type === 'datetime' ? fmtDate(v, true) : c.type === 'money' ? rupiah(v) : c.type === 'link' && c.href ? <a href={c.href(r)}>{v ?? 'Buka'}</a> : (v ?? '—')}</td>;
+    })}</tr>)}</tbody>
+  </table>
+</div>}

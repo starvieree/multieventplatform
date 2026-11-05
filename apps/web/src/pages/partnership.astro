@@ -1,0 +1,33 @@
+---
+import PublicLayout from '../layouts/PublicLayout.astro';
+import Breadcrumb from '../components/Breadcrumb.astro';
+import FormField from '../components/FormField.astro';
+const targets = [['Komunitas', 'Komunitas hobi, profesi, dan kampus yang rutin membuat acara.'], ['Organisasi', 'Yayasan, asosiasi, dan lembaga nirlaba.'], ['Institusi', 'Sekolah, perguruan tinggi, dan instansi.'], ['Perusahaan', 'Brand dan perusahaan yang menggelar acara publik.']];
+const forms = [['Penyelenggara event', 'Event Anda tampil di katalog dan menerima pendaftaran lewat platform.'], ['Sponsor dan promosi', 'Tampil di banner atau artikel yang relevan.'], ['Kolaborasi program', 'Rangkaian event bersama dengan kebutuhan khusus.']];
+const flow = ['Kirim formulir pengajuan', 'Tim meninjau dan menghubungi Anda', 'Disepakati ruang lingkup kerja sama', 'Event atau program mulai berjalan'];
+const faq = [['Berapa lama proses peninjauan?', 'Tim akan menghubungi lewat email yang Anda cantumkan setelah pengajuan ditinjau.'], ['Apakah ada biaya untuk mengajukan?', 'Mengajukan tidak dipungut biaya. Skema kerja sama dibahas setelah peninjauan.'], ['Apakah event gratis bisa didaftarkan?', 'Bisa. Event gratis langsung terkonfirmasi setelah formulir diisi dan kuota tersedia.']];
+---
+<PublicLayout title="Partnership" description="Ajukan kerja sama penyelenggaraan event dengan platform pendaftaran multi-event.">
+  <section class="hero"><div class="wrap"><Breadcrumb items={[{ label: 'Beranda', href: '/' }, { label: 'Partnership' }]} />
+    <h1 style="margin-top:20px;max-width:20ch">Selenggarakan event bersama kami.</h1><p class="lead">Kelola pendaftaran, kuota, dan pembayaran peserta tanpa memeriksa bukti transfer satu per satu.</p>
+    <div class="row" style="margin-top:20px"><a class="btn" href="#ajukan">Ajukan kerja sama</a></div></div></section>
+  <section class="section section--muted"><div class="wrap"><div class="section-head"><h2>Siapa yang bisa bermitra</h2><p></p></div>
+    <div class="grid grid--4">{targets.map(([t, d]) => <article class="card card--pad"><h3>{t}</h3><p class="muted small" style="margin:0">{d}</p></article>)}</div></div></section>
+  <section class="section"><div class="wrap grid grid--2">
+    <div><h2>Bentuk kerja sama</h2><ul class="stack" style="padding:0;list-style:none">{forms.map(([t, d]) => <li><b>{t}</b><div class="muted">{d}</div></li>)}</ul></div>
+    <div><h2>Manfaat untuk mitra</h2><ul class="muted" style="padding-left:18px"><li>Kuota tidak oversold saat pendaftaran ramai.</li><li>Pembayaran terkonfirmasi otomatis.</li><li>Laporan pendaftaran dan pendapatan dapat diekspor.</li><li>Riwayat tindakan admin tercatat.</li></ul></div></div></section>
+  <section class="section section--muted"><div class="wrap"><h2>Alur pengajuan</h2><ol class="grid grid--4" style="list-style:none;padding:0">{flow.map((t, i) => <li class="card card--pad"><b style="font-family:var(--font-display)">Langkah {i + 1}</b><p style="margin:6px 0 0">{t}</p></li>)}</ol></div></section>
+  <section class="section" id="ajukan"><div class="wrap grid grid--2" style="align-items:start">
+    <div><h2>Formulir pengajuan</h2><p class="muted">Ceritakan organisasi dan rencana Anda. Kami hanya memakai data ini untuk menanggapi pengajuan.</p></div>
+    <form class="form card card--pad" data-json-form data-hp data-endpoint="/api/v1/partnership-applications" data-success="Pengajuan terkirim. Kami akan menghubungi Anda lewat email." data-reset>
+      <FormField name="organization_name" label="Nama organisasi" required /><FormField name="contact_name" label="Nama kontak" required />
+      <FormField name="email" type="email" label="Email" required autocomplete="email" /><FormField name="phone" type="tel" label="Telepon" autocomplete="tel" />
+      <FormField name="organization_type" type="select" label="Tipe organisasi" required options={[{ value: 'komunitas', label: 'Komunitas' }, { value: 'organisasi', label: 'Organisasi' }, { value: 'institusi', label: 'Institusi' }, { value: 'perusahaan', label: 'Perusahaan' }]} />
+      <FormField name="website" type="url" label="Situs web" hint="Awali dengan https://" /><FormField name="description" type="textarea" label="Rencana kerja sama" required rows={5} />
+      <div class="hp" aria-hidden="true"><label>Jangan diisi<input name="hp" tabindex="-1" autocomplete="off" /></label></div>
+      <FormField name="consent" type="checkbox" label="Saya menyetujui kebijakan privasi dan penggunaan data untuk menanggapi pengajuan ini." required />
+      <div data-feedback hidden></div><button class="btn" type="submit">Kirim pengajuan</button>
+    </form></div></section>
+  <section class="section section--muted"><div class="wrap grid grid--2" style="align-items:start"><div><h2>Pertanyaan umum</h2><p class="muted">Belum terjawab? <a href="/kontak">Hubungi kami</a>.</p></div><div>{faq.map(([q, a]) => <details class="faq"><summary>{q}</summary><div>{a}</div></details>)}</div></div></section>
+  <script>import '../scripts/json-form.ts';</script>
+</PublicLayout>

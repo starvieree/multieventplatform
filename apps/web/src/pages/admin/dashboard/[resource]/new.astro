@@ -1,0 +1,8 @@
+---
+import PanelLayout from '../../../../layouts/PanelLayout.astro';
+import AdminForm from '../../../../components/AdminForm.astro';
+import { RESOURCES, can } from '../../../../lib/admin-resources';
+const res = RESOURCES[Astro.params.resource!];
+if (!res || !res.create || !can(Astro.locals, res.perm)) return Astro.rewrite('/404');
+---
+<PanelLayout title={`Tambah ${res.title}`} variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: res.title, href: `/admin/dashboard/${res.slug}` }, { label: 'Tambah' }]}><h1 style="margin-bottom:16px">Tambah {res.title}</h1><AdminForm res={res} /></PanelLayout>

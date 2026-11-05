@@ -1,0 +1,26 @@
+---
+import PublicLayout from '../../../layouts/PublicLayout.astro';
+import StateBox from '../../../components/StateBox.astro';
+import { fmtDate, rupiah } from '../../../lib/utils/format';
+import { snapScriptUrl } from '../../../lib/utils/midtrans';
+const sb = Astro.locals.supabase;
+const { data: r } = await sb.from('registrations').select('id,registration_code,registration_status,total_amount,quantity,event:events(title,slug),ticket:ticket_categories(name),reservations:quota_reservations(status,expires_at)').eq('id', Astro.params.id!).maybeSingle();
+if (!r) return Astro.rewrite('/404');
+if (r.registration_status === 'draft') return Astro.redirect(`/registration/${r.id}/form`);
+if (r.registration_status !== 'awaiting_payment') return Astro.redirect(`/registration/${r.id}/status`);
+const res = (r as any).reservations?.find((x: any) => x.status === 'reserved' && +new Date(x.expires_at) > Date.now());
+const ev = (r as any).event;
+---
+<PublicLayout title="Pembayaran" noindex>
+  <section class="section"><div class="wrap" style="max-width:640px">
+    {!res ? <StateBox kind="error" title="Waktu pembayaran sudah berakhir" text="Reservasi Anda dilepas. Bila sudah membayar, status akan diperbarui otomatis; cek halaman status." href={`/registration/${r.id}/status`} action="Cek status" /> : <>
+    <h1 style="font-size:2.2rem">Pembayaran</h1>
+    <div class="card card--pad stack" id="pay" data-id={r.id} data-client-key={import.meta.env.MIDTRANS_CLIENT_KEY} data-snap={snapScriptUrl()}>
+      <dl class="kv"><dt>Event</dt><dd>{ev.title}</dd><dt>Tiket</dt><dd>{(r as any).ticket.name} × {r.quantity}</dd><dt>Kode</dt><dd>{r.registration_code}</dd><dt>Total</dt><dd><b>{rupiah(r.total_amount)}</b></dd><dt>Bayar sebelum</dt><dd>{fmtDate(res.expires_at, true)}</dd></dl>
+      <div id="pay-msg" class="alert alert--bad" role="alert" hidden></div>
+      <button class="btn" id="pay-btn" type="button">Bayar sekarang</button>
+      <p class="meta" style="margin:0">Pembayaran diproses Midtrans. Status baru berubah setelah pembayaran terkonfirmasi di server, bukan dari halaman ini. Bila Anda menutup jendela pembayaran, Anda dapat melanjutkannya dari dashboard.</p>
+    </div></>}
+  </div></section>
+  <script>import '../../../scripts/payment.ts';</script>
+</PublicLayout>

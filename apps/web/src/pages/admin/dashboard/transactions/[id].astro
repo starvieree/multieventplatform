@@ -1,0 +1,21 @@
+---
+import PanelLayout from '../../../../layouts/PanelLayout.astro';
+import Badge from '../../../../components/Badge.astro';
+import DataTable from '../../../../components/DataTable.astro';
+import { adminDb } from '../../../../lib/supabase/server';
+import { can } from '../../../../lib/admin-resources';
+import { fmtDate, rupiah } from '../../../../lib/utils/format';
+if (!can(Astro.locals, 'transactions.view') || !/^[0-9a-f-]{36}$/i.test(Astro.params.id!)) return Astro.rewrite('/404');
+const db = adminDb();
+const { data: t } = await db.from('transactions').select('*, registration:registrations(id,registration_code,event:events(title))').eq('id', Astro.params.id!).maybeSingle();
+if (!t) return Astro.rewrite('/404');
+const { data: notes } = await db.from('payment_notifications').select('id,received_at,signature_valid,processing_status,status_code').eq('transaction_id', t.id).order('received_at', { ascending: false });
+const x = t as any;
+---
+<PanelLayout title={`Transaksi ${t.order_id}`} variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: 'Transaksi', href: '/admin/dashboard/transactions' }, { label: t.order_id }]}>
+  <div class="row between"><h1 style="font-size:1.6rem;word-break:break-all">{t.order_id}</h1><div class="row"><Badge status={t.transaction_status} />{t.transaction_status === 'pending' && <button class="btn btn--secondary btn--sm" data-action={`/api/v1/admin/transactions/${t.id}/refresh`}>Sinkron ke Midtrans</button>}</div></div>
+  <section class="card card--pad" style="margin-top:16px;max-width:720px"><dl class="kv"><dt>Pendaftaran</dt><dd><a href={`/admin/dashboard/registrations/${x.registration.id}`}>{x.registration.registration_code}</a> · {x.registration.event?.title}</dd><dt>Nominal</dt><dd>{rupiah(t.gross_amount)}</dd><dt>Metode</dt><dd>{t.payment_type ?? '—'}</dd><dt>ID transaksi Midtrans</dt><dd>{t.provider_transaction_id ?? '—'}</dd><dt>Status mentah</dt><dd>{t.raw_status ?? '—'}{t.fraud_status ? ` (fraud: ${t.fraud_status})` : ''}</dd><dt>Dibuat</dt><dd>{fmtDate(t.created_at, true)}</dd><dt>Batas bayar</dt><dd>{fmtDate(t.expiry_time, true)}</dd><dt>Dibayar</dt><dd>{fmtDate(t.paid_at, true)}</dd></dl></section>
+  <h2 style="font-size:1.2rem;margin:24px 0 12px">Riwayat notifikasi webhook</h2>
+  <DataTable caption="Notifikasi pembayaran" empty="Belum ada notifikasi" rows={notes ?? []} cols={[{ key: 'received_at', label: 'Diterima', type: 'datetime' }, { key: 'status_code', label: 'Kode' }, { key: 'signature_valid', label: 'Signature valid' }, { key: 'processing_status', label: 'Hasil proses' }]} />
+  <script>import '../../../../scripts/admin-actions.ts';</script>
+</PanelLayout>

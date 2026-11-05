@@ -1,0 +1,11 @@
+---
+import PanelLayout from '../../../layouts/PanelLayout.astro';
+import { can } from '../../../lib/admin-resources';
+if (!can(Astro.locals, 'reports.view')) return Astro.rewrite('/404');
+const reports = [['registrations', 'Laporan pendaftaran', 'Kode, event, peserta, status, dan total.'], ['payments', 'Laporan pembayaran', 'Order, status, nominal, metode, waktu bayar.'], ['participants', 'Laporan peserta', 'Nama, email, telepon, dan status akun.']];
+---
+<PanelLayout title="Laporan" variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: 'Laporan' }]}>
+  <h1>Laporan & ekspor</h1><p class="muted">Ekspor CSV maksimal 5.000 baris per unduhan. Setiap ekspor tercatat di audit log karena berisi data pribadi.</p>
+  <div class="grid grid--3" style="margin-top:16px">{reports.map(([k, t, d]) => <form class="card card--pad form" method="get" action={`/api/v1/admin/reports/${k}`}><h2 style="font-size:1.2rem;margin:0">{t}</h2><p class="muted small" style="margin:0">{d}</p>
+    <div class="field"><label for={`f-${k}`}>Dari tanggal</label><input class="input" type="date" id={`f-${k}`} name="from" /></div><div class="field"><label for={`t-${k}`}>Sampai tanggal</label><input class="input" type="date" id={`t-${k}`} name="to" /></div><button class="btn" type="submit">Unduh CSV</button></form>)}</div>
+</PanelLayout>

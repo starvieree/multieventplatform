@@ -1,0 +1,28 @@
+---
+import '../styles/global.css';
+interface Props { title: string; description?: string; noindex?: boolean; image?: string | null; jsonLd?: object | null; canonical?: string; }
+const { title, description = 'Temukan event, daftar, dan bayar dalam satu tempat. Kuota dijaga agar tidak oversold dan pembayaran dikonfirmasi otomatis.', noindex = false, image = null, jsonLd = null, canonical } = Astro.props;
+const url = canonical ?? new URL(Astro.url.pathname, Astro.site).toString();
+const full = title.includes('Platform Event') ? title : `${title} · Platform Event`;
+---
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{full}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={url} />
+    <meta name="robots" content={noindex ? 'noindex, nofollow' : 'index, follow'} />
+    <meta property="og:type" content="website" /><meta property="og:title" content={full} /><meta property="og:description" content={description} /><meta property="og:url" content={url} />
+    {image && <meta property="og:image" content={image} />}<meta name="twitter:card" content={image ? 'summary_large_image' : 'summary'} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@500;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" />
+    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd).replace(/</g, '\\u003c')} />}
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Lewati ke konten</a>
+    <slot />
+  </body>
+</html>

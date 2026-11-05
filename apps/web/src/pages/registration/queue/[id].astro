@@ -1,0 +1,21 @@
+---
+import PublicLayout from '../../../layouts/PublicLayout.astro';
+import { ERROR_TEXT } from '../../../lib/utils/status';
+const sb = Astro.locals.supabase;
+const { data: q } = await sb.from('queue_requests').select('id,status,error_code,event_id').eq('id', Astro.params.id!).maybeSingle();
+if (!q) return Astro.rewrite('/404');
+if (q.status === 'accepted') { const { data: r } = await sb.from('registrations').select('id').eq('queue_request_id', q.id).maybeSingle(); if (r) return Astro.redirect(`/registration/${r.id}/form`); }
+const { data: ev } = await sb.from('events').select('title,slug').eq('id', q.event_id).maybeSingle();
+const failed = ['rejected', 'failed', 'expired'].includes(q.status);
+---
+<PublicLayout title="Memproses pendaftaran" noindex>
+  <section class="auth wrap" style="max-width:600px"><div class="card card--pad" id="queue" data-id={q.id} data-state={q.status}>
+    <p class="meta">{ev?.title}</p>
+    <h1 style="font-size:2rem" id="q-title">{failed ? 'Pendaftaran belum berhasil' : 'Sedang mengamankan kuota Anda'}</h1>
+    <div id="q-body" aria-live="polite" class="stack">
+      {failed ? <p>{(q.error_code && ERROR_TEXT[q.error_code]) ?? 'Permintaan tidak dapat diproses.'}</p> : <p class="muted">Permintaan Anda masuk antrean dan diproses berurutan. Mohon tetap di halaman ini dan jangan mengirim ulang pendaftaran.</p>}
+    </div>
+    <div class="row" id="q-actions" style="margin-top:20px">{failed ? <><a class="btn" href={ev ? `/events/${ev.slug}` : '/events'}>Kembali ke event</a><a class="btn btn--secondary" href="/events">Lihat event lain</a></> : <span class="meta" id="q-wait">Memeriksa status…</span>}</div>
+  </div></section>
+  <script>import '../../../scripts/queue.ts';</script>
+</PublicLayout>

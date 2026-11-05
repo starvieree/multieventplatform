@@ -1,0 +1,17 @@
+---
+import Badge from './Badge.astro';
+import { fmtDate, mediaUrl, rupiah } from '../lib/utils/format';
+interface Props { e: Record<string, any> }
+const { e } = Astro.props;
+const img = mediaUrl(e.poster_path);
+const full = e.status === 'published' && e.available <= 0;
+---
+<article class="card event-card">
+  {img ? <img class="event-card__img" src={img} alt={e.poster_alt || `Poster ${e.title}`} width="640" height="360" loading="lazy" /> : <div class="event-card__ph" aria-hidden="true">{e.title?.[0]}</div>}
+  <div class="event-card__body">
+    <div class="row"><span class="meta">{e.category_name ?? 'Event'}</span><Badge status={full ? 'rejected' : e.status} label={full ? 'Kuota penuh' : undefined} /></div>
+    <h3><a href={`/events/${e.slug}`}>{e.title}</a></h3>
+    <p class="meta" style="margin:0">{fmtDate(e.start_at)} · {e.event_type === 'online' ? 'Online' : e.venue_name ?? 'Lokasi segera diumumkan'}</p>
+    <div class="event-card__foot"><span class="price">{rupiah(e.min_price)}</span><a class="btn btn--secondary btn--sm" href={`/events/${e.slug}`}>Detail<span class="sr-only">: {e.title}</span></a></div>
+  </div>
+</article>

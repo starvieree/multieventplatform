@@ -1,0 +1,5 @@
+---
+interface Props { kind?: 'empty' | 'error'; title: string; text?: string; href?: string; action?: string }
+const { kind = 'empty', title, text, href, action } = Astro.props;
+---
+<div class="state" role={kind === 'error' ? 'alert' : 'status'}><h3>{title}</h3>{text && <p>{text}</p>}{href && action && <a class="btn btn--secondary" href={href}>{action}</a>}</div>

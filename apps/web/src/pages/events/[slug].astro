@@ -1,0 +1,398 @@
+---
+import PublicLayout from "../../layouts/PublicLayout.astro";
+import Breadcrumb from "../../components/Breadcrumb.astro";
+import Badge from "../../components/Badge.astro";
+import EventCard from "../../components/EventCard.astro";
+import { fmtDate, mediaUrl, rupiah } from "../../lib/utils/format";
+const { slug } = Astro.params;
+const sb = Astro.locals.supabase;
+const { data: ev } = await sb
+  .from("events")
+  .select("*, category:event_categories(name,slug)")
+  .eq("slug", slug!)
+  .maybeSingle();
+if (!ev) return Astro.rewrite("/404");
+const [
+  { data: tickets },
+  { data: avail },
+  { data: listing },
+  { data: related },
+] = await Promise.all([
+  sb
+    .from("ticket_categories")
+    .select("*")
+    .eq("event_id", ev.id)
+    .eq("is_active", true)
+    .order("price"),
+  sb
+    .from("ticket_availability")
+    .select("ticket_category_id,available")
+    .eq("event_id", ev.id),
+  sb.from("event_listing").select("available").eq("id", ev.id).maybeSingle(),
+  sb
+    .from("event_listing")
+    .select("*")
+    .eq("category_slug", ev.category?.slug ?? "")
+    .neq("id", ev.id)
+    .eq("status", "published")
+    .limit(3),
+]);
+const left = new Map(
+  (avail ?? []).map((a) => [a.ticket_category_id, a.available as number]),
+);
+const now = Date.now();
+const windowOpen =
+  ev.status === "published" &&
+  now >= +new Date(ev.registration_opens_at) &&
+  now <= +new Date(ev.registration_closes_at);
+const sellable = (tickets ?? []).filter(
+  (t) =>
+    (!t.sales_start_at || now >= +new Date(t.sales_start_at)) &&
+    (!t.sales_end_at || now <= +new Date(t.sales_end_at)),
+);
+const canRegister =
+  windowOpen && sellable.some((t) => (left.get(t.id) ?? 0) > 0);
+const reason =
+  ev.status !== "published"
+    ? "Pendaftaran untuk event ini sudah ditutup."
+    : now < +new Date(ev.registration_opens_at)
+      ? `Pendaftaran dibuka ${fmtDate(ev.registration_opens_at, true)}.`
+      : now > +new Date(ev.registration_closes_at)
+        ? "Periode pendaftaran sudah berakhir."
+        : "Kuota sudah penuh.";
+const poster = mediaUrl(ev.poster_path ?? ev.banner_path);
+const faq = (Array.isArray(ev.faq) ? ev.faq : []) as {
+  q?: string;
+  a?: string;
+  question?: string;
+  answer?: string;
+}[];
+const next = encodeURIComponent(`/events/${ev.slug}#daftar`);
+
+const getTicketMeta = (t: any) => {
+  const a = left.get(t.id) ?? 0;
+  const ok = windowOpen && sellable.includes(t) && a > 0;
+  const status = ok ? `${a} tiket tersisa` : a <= 0 ? "Habis" : "Belum dijual";
+  const end = t.sales_end_at ? ` · sampai ${fmtDate(t.sales_end_at)}` : "";
+  return { a, ok, text: `${status}${end}` };
+};
+const defaultTicketIndex = (tickets ?? []).findIndex(
+  (x) => (left.get(x.id) ?? 0) > 0 && sellable.includes(x),
+);
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Event",
+  name: ev.title,
+  description: ev.summary ?? undefined,
+  startDate: ev.start_at,
+  endDate: ev.end_at,
+  eventStatus: "https://schema.org/EventScheduled",
+  eventAttendanceMode:
+    ev.event_type === "online"
+      ? "https://schema.org/OnlineEventAttendanceMode"
+      : ev.event_type === "hybrid"
+        ? "https://schema.org/MixedEventAttendanceMode"
+        : "https://schema.org/OfflineEventAttendanceMode",
+  location:
+    ev.event_type === "online"
+      ? {
+          "@type": "VirtualLocation",
+          url: new URL(`/events/${ev.slug}`, Astro.site).toString(),
+        }
+      : {
+          "@type": "Place",
+          name: ev.venue_name ?? undefined,
+          address: ev.address ?? undefined,
+        },
+  image: poster ? [poster] : undefined,
+  organizer: ev.organizer_name
+    ? { "@type": "Organization", name: ev.organizer_name }
+    : undefined,
+  offers: sellable.map((t) => ({
+    "@type": "Offer",
+    name: t.name,
+    price: t.price,
+    priceCurrency: "IDR",
+    availability:
+      (left.get(t.id) ?? 0) > 0
+        ? "https://schema.org/InStock"
+        : "https://schema.org/SoldOut",
+    url: new URL(`/events/${ev.slug}`, Astro.site).toString(),
+  })),
+};
+---
+
+<PublicLayout
+  title={ev.meta_title || ev.title}
+  description={ev.meta_description || ev.summary || undefined}
+  image={mediaUrl(ev.og_image_path ?? ev.poster_path)}
+  jsonLd={jsonLd}
+>
+  <div class="wrap">
+    <Breadcrumb
+      items={[
+        { label: "Beranda", href: "/" },
+        { label: "Event", href: "/events" },
+        { label: ev.title },
+      ]}
+    />
+  </div>
+  <section class="section" style="padding-top:24px">
+    <div
+      class="wrap grid"
+      style="grid-template-columns:1.5fr 1fr;align-items:start"
+      id="detail-grid"
+    >
+      <div class="stack">
+        {
+          poster && (
+            <img
+              class="card"
+              style="width:100%;aspect-ratio:16/9;object-fit:cover;filter:grayscale(1)"
+              src={poster}
+              alt={ev.poster_alt || `Poster ${ev.title}`}
+              width="960"
+              height="540"
+            />
+          )
+        }
+        <div class="row">
+          <span class="meta">{ev.category?.name ?? "Event"}</span><Badge
+            status={ev.status}
+          />
+        </div>
+        <h1 style="font-size:clamp(2rem,4vw,3rem)">{ev.title}</h1>
+        {ev.summary && <p class="lead">{ev.summary}</p>}
+        <dl class="kv card card--pad">
+          <dt>Waktu</dt><dd>
+            {fmtDate(ev.start_at, true)} – {fmtDate(ev.end_at, true)} (WIB)
+          </dd>
+          <dt>Lokasi</dt><dd>
+            {
+              ev.event_type === "online"
+                ? "Online"
+                : [ev.venue_name, ev.address].filter(Boolean).join(", ") ||
+                  "Segera diumumkan"
+            }{
+              ev.event_type !== "offline" && ev.online_url && (
+                <>
+                  {" "}
+                  ·{" "}
+                  <a href={ev.online_url} rel="noopener noreferrer">
+                    Tautan acara
+                  </a>
+                </>
+              )
+            }
+          </dd>
+          <dt>Pendaftaran</dt><dd>
+            {fmtDate(ev.registration_opens_at)} – {
+              fmtDate(ev.registration_closes_at)
+            }
+          </dd>
+          <dt>Penyelenggara</dt><dd>{ev.organizer_name ?? "—"}</dd><dt>
+            Kuota tersisa
+          </dt><dd>{listing?.available ?? "—"} dari {ev.total_quota}</dd>
+        </dl>
+        {
+          ev.description && (
+            <>
+              <>
+                <h2 id="deskripsi">Tentang event</h2>
+                <div class="prose" style="white-space:pre-line">
+                  {ev.description}
+                </div>
+              </>
+            </>
+          )
+        }
+        {
+          ev.requirements && (
+            <>
+              <>
+                <h2>Persyaratan peserta</h2>
+                <div class="prose" style="white-space:pre-line">
+                  {ev.requirements}
+                </div>
+              </>
+            </>
+          )
+        }
+        {
+          ev.event_type !== "online" && ev.address && (
+            <>
+              <>
+                <h2>Lokasi</h2>
+                <p>
+                  {ev.venue_name}
+                  <br />
+                  {ev.address}
+                </p>
+                <a
+                  class="btn btn--secondary btn--sm"
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([ev.venue_name, ev.address].filter(Boolean).join(" "))}`}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  Buka di peta
+                </a>
+              </>
+            </>
+          )
+        }
+        {
+          faq.length > 0 && (
+            <>
+              <>
+                <h2>Pertanyaan umum</h2>
+                <div>
+                  {faq.map((f) => (
+                    <details class="faq">
+                      <summary>{f.q || f.question}</summary>
+                      <div>{f.a || f.answer}</div>
+                    </details>
+                  ))}
+                </div>
+              </>
+            </>
+          )
+        }
+      </div>
+
+      <aside
+        class="card card--pad"
+        id="daftar"
+        style="position:sticky;top:88px"
+        aria-labelledby="daftar-h"
+      >
+        <h2 id="daftar-h" style="font-size:1.4rem">Kategori tiket</h2>
+        {
+          (tickets ?? []).length === 0 ? (
+            <p class="muted">Tiket belum tersedia.</p>
+          ) : (
+            <form
+              id="register-form"
+              data-event={ev.id}
+              data-slug={ev.slug}
+              data-max={ev.max_per_user}
+              data-can={canRegister && !!Astro.locals.user ? "1" : "0"}
+            >
+              <fieldset style="border:0;padding:0;margin:0" class="stack">
+                <legend class="sr-only">Pilih kategori tiket</legend>
+                {(tickets ?? []).map((t, i) => {
+                  const meta = getTicketMeta(t);
+                  return (
+                    <label class="ticket">
+                      <div>
+                        <b>{t.name}</b>
+                        {t.description && (
+                          <div class="meta">{t.description}</div>
+                        )}
+                        <div class="meta">{meta.text}</div>
+                      </div>
+                      <div style="text-align:right">
+                        <span class="price">{rupiah(t.price)}</span>
+                        <br />
+                        <input
+                          type="radio"
+                          name="ticket"
+                          value={t.id}
+                          disabled={!meta.ok}
+                          checked={meta.ok && i === defaultTicketIndex}
+                          aria-label={`Pilih ${t.name}`}
+                        />
+                      </div>
+                    </label>
+                  );
+                })}
+              </fieldset>
+              {canRegister && ev.max_per_user > 1 && (
+                <div class="field" style="margin-top:14px">
+                  <label for="qty">
+                    Jumlah tiket (maks. {ev.max_per_user})
+                  </label>
+                  <input
+                    class="input"
+                    id="qty"
+                    name="qty"
+                    type="number"
+                    min="1"
+                    max={ev.max_per_user}
+                    value="1"
+                  />
+                </div>
+              )}
+              <div style="margin-top:16px" class="stack">
+                {!canRegister ? (
+                  <>
+                    <div class="alert" role="status">
+                      {reason}
+                    </div>
+                  </>
+                ) : Astro.locals.user ? (
+                  <button
+                    class="btn"
+                    style="width:100%"
+                    type="submit"
+                    id="register-btn"
+                  >
+                    Daftar sekarang
+                  </button>
+                ) : (
+                  <a
+                    class="btn"
+                    style="width:100%"
+                    href={`/login?next=${next}`}
+                  >
+                    Masuk untuk mendaftar
+                  </a>
+                )}
+                <div
+                  id="register-msg"
+                  class="alert alert--bad"
+                  role="alert"
+                  hidden
+                />
+                <p class="meta" style="margin:0">
+                  Kuota diamankan lewat antrean. Anda punya waktu terbatas untuk
+                  melengkapi formulir dan membayar.
+                </p>
+              </div>
+            </form>
+          )
+        }
+      </aside>
+    </div>
+  </section>
+
+  {
+    related && related.length > 0 && (
+      <section class="section section--muted">
+        <div class="wrap">
+          <>
+            <h2>Event terkait</h2>
+            <div class="grid grid--3">
+              {related.map((e) => (
+                <EventCard e={e} />
+              ))}
+            </div>
+          </>
+        </div>
+      </section>
+    )
+  }
+  <style>
+    @media (max-width: 900px) {
+      #detail-grid {
+        grid-template-columns: 1fr !important;
+      }
+      #daftar {
+        position: static !important;
+      }
+    }
+  </style>
+  <script>
+    import "../../scripts/event-register.ts";
+  </script>
+</PublicLayout>

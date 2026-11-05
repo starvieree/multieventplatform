@@ -1,0 +1,19 @@
+---
+import PanelLayout from '../../../../layouts/PanelLayout.astro';
+import AdminForm from '../../../../components/AdminForm.astro';
+import { adminDb } from '../../../../lib/supabase/server';
+import { RESOURCES, can } from '../../../../lib/admin-resources';
+import { fmtDate } from '../../../../lib/utils/format';
+const res = RESOURCES[Astro.params.resource!];
+if (!res || !res.edit || !can(Astro.locals, res.perm) || !/^[0-9a-f-]{36}$/i.test(Astro.params.id!)) return Astro.rewrite('/404');
+const { data: item } = await adminDb().from(res.table).select('*').eq('id', Astro.params.id!).maybeSingle();
+if (!item) return Astro.rewrite('/404');
+const editable = new Set(res.fields.map((f) => f.key));
+const info = res.detail ? Object.entries(item).filter(([k, v]) => !editable.has(k) && !['id', 'updated_at', 'assigned_admin_id', 'attachment_path'].includes(k) && v != null) : [];
+const label: Record<string, string> = { organization_name: 'Organisasi', contact_name: 'Kontak', email: 'Email', phone: 'Telepon', organization_type: 'Tipe', website: 'Situs', description: 'Deskripsi', created_at: 'Masuk', name: 'Pengirim', subject: 'Subjek', message: 'Pesan' };
+---
+<PanelLayout title={`Ubah ${res.title}`} variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: res.title, href: `/admin/dashboard/${res.slug}` }, { label: 'Ubah' }]}>
+  <h1 style="margin-bottom:16px">{res.title}</h1>
+  {info.length > 0 && <section class="card card--pad" style="max-width:720px;margin-bottom:20px"><dl class="kv">{info.map(([k, v]) => <><dt>{label[k] ?? k}</dt><dd style="white-space:pre-line">{k === 'created_at' ? fmtDate(String(v), true) : String(v)}</dd></>)}</dl></section>}
+  <AdminForm res={res} item={item} />
+</PanelLayout>

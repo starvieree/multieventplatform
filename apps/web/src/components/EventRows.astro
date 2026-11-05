@@ -1,0 +1,26 @@
+---
+import { toInputDateTime } from '../lib/utils/format';
+interface Props { kind: 'ticket' | 'field' | 'faq'; d?: Record<string, any> }
+const { kind, d = {} } = Astro.props;
+const types = ['text', 'textarea', 'number', 'email', 'tel', 'select', 'checkbox', 'date'];
+---
+{kind === 'ticket' && <div class="card card--pad form form--2" data-ticket data-k-id={d.id ?? ''}>
+  <div class="field"><label>Nama tiket<input class="input" data-k="name" value={d.name ?? ''} required maxlength="100" /></label></div>
+  <div class="field"><label>Harga (Rp, 0 = gratis)<input class="input" data-k="price" type="number" min="0" value={d.price ?? 0} required /></label></div>
+  <div class="field"><label>Kuota<input class="input" data-k="quota" type="number" min="0" value={d.quota ?? 0} required /></label></div>
+  <div class="field"><label>Deskripsi/benefit<input class="input" data-k="description" value={d.description ?? ''} maxlength="300" /></label></div>
+  <div class="field"><label>Mulai dijual<input class="input" data-k="sales_start_at" type="datetime-local" value={toInputDateTime(d.sales_start_at)} /></label></div>
+  <div class="field"><label>Selesai dijual<input class="input" data-k="sales_end_at" type="datetime-local" value={toInputDateTime(d.sales_end_at)} /></label></div>
+  <div class="check"><input type="checkbox" data-k="is_active" checked={d.is_active ?? true} id={`ta-${d.id ?? Math.random()}`} /><label style="margin:0">Aktif dijual</label></div>
+  <div><button type="button" class="btn btn--secondary btn--sm" data-remove>Hapus tiket</button></div></div>}
+{kind === 'field' && <div class="card card--pad form form--2" data-field>
+  <div class="field"><label>Key (huruf kecil/underscore)<input class="input" data-k="field_key" value={d.field_key ?? ''} required pattern="[a-z][a-z0-9_]*" maxlength="40" /></label></div>
+  <div class="field"><label>Label<input class="input" data-k="label" value={d.label ?? ''} required maxlength="120" /></label></div>
+  <div class="field"><label>Tipe<select class="input" data-k="field_type">{types.map((t) => <option selected={(d.field_type ?? 'text') === t}>{t}</option>)}</select></label></div>
+  <div class="field"><label>Pilihan (untuk tipe select, pisahkan koma)<input class="input" data-k="options" value={(d.options ?? []).join(', ')} /></label></div>
+  <div class="check"><input type="checkbox" data-k="is_required" checked={d.is_required ?? false} /><label style="margin:0">Wajib diisi</label></div>
+  <div><button type="button" class="btn btn--secondary btn--sm" data-remove>Hapus field</button></div></div>}
+{kind === 'faq' && <div class="card card--pad form" data-faq>
+  <div class="field"><label>Pertanyaan<input class="input" data-k="q" value={d.q ?? ''} maxlength="200" /></label></div>
+  <div class="field"><label>Jawaban<textarea class="input" data-k="a" rows="2" maxlength="2000">{d.a ?? ''}</textarea></label></div>
+  <div><button type="button" class="btn btn--secondary btn--sm" data-remove>Hapus</button></div></div>}

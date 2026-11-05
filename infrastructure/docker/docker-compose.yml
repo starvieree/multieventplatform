@@ -1,0 +1,21 @@
+# RabbitMQ (volume persisten, user khusus, management hanya localhost) + worker.
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-app}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:?isi RABBITMQ_PASS}
+    ports:
+      - "127.0.0.1:15672:15672"      # management: jangan dibuka ke publik
+      - "5672:5672"                   # batasi lewat firewall/jaringan privat; gunakan TLS bila lintas jaringan tidak tepercaya
+    volumes: [ "rabbitmq_data:/var/lib/rabbitmq" ]
+    healthcheck: { test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"], interval: 15s, timeout: 10s, retries: 5 }
+  worker:
+    build: ../../apps/worker
+    restart: unless-stopped
+    depends_on: { rabbitmq: { condition: service_healthy } }
+    env_file: ../../apps/worker/.env
+    stop_grace_period: 20s
+volumes:
+  rabbitmq_data:

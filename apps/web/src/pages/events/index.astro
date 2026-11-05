@@ -1,0 +1,48 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import EventCard from '../../components/EventCard.astro';
+import Pagination from '../../components/Pagination.astro';
+import StateBox from '../../components/StateBox.astro';
+const sb = Astro.locals.supabase;
+const sp = Astro.url.searchParams;
+const clean = (s: string | null, n = 80) => (s ?? '').replace(/[,()%*\\]/g, ' ').trim().slice(0, n);   // aman untuk filter PostgREST
+const f = { q: clean(sp.get('q')), category: clean(sp.get('category'), 60), location: clean(sp.get('location')), date_from: sp.get('date_from') ?? '', date_to: sp.get('date_to') ?? '',
+  price_type: ['free', 'paid'].includes(sp.get('price_type') ?? '') ? sp.get('price_type')! : '', status: ['published', 'registration_closed', 'ongoing', 'completed'].includes(sp.get('status') ?? '') ? sp.get('status')! : '' };
+const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
+const page = Math.max(1, Number(sp.get('page') ?? 1) || 1), size = 9;
+let q = sb.from('event_listing').select('*', { count: 'exact' }).in('status', f.status ? [f.status] : ['published', 'registration_closed', 'ongoing']);
+if (f.q) q = q.or(`title.ilike.%${f.q}%,summary.ilike.%${f.q}%`);
+if (f.category) q = q.eq('category_slug', f.category);
+if (f.location) q = q.or(`venue_name.ilike.%${f.location}%,address.ilike.%${f.location}%`);
+if (isDate(f.date_from)) q = q.gte('start_at', `${f.date_from}T00:00:00+07:00`);
+if (isDate(f.date_to)) q = q.lte('start_at', `${f.date_to}T23:59:59+07:00`);
+if (f.price_type === 'free') q = q.eq('min_price', 0); if (f.price_type === 'paid') q = q.gt('min_price', 0);
+const { data, count, error } = await q.order('start_at').range((page - 1) * size, page * size - 1);
+const { data: cats } = await sb.from('event_categories').select('name,slug').eq('is_active', true).order('name');
+const labels: Record<string, string> = { q: 'Kata kunci', category: 'Kategori', location: 'Lokasi', date_from: 'Dari', date_to: 'Sampai', price_type: 'Harga', status: 'Status' };
+const chips = Object.entries(f).filter(([, v]) => v);
+const without = (k: string) => { const u = new URL(Astro.url); u.searchParams.delete(k); u.searchParams.delete('page'); return u.pathname + u.search; };
+---
+<PublicLayout title="Katalog event" description="Cari event berdasarkan kategori, lokasi, tanggal, dan harga.">
+  <section class="section--tight"><div class="wrap"><Breadcrumb items={[{ label: 'Beranda', href: '/' }, { label: 'Event' }]} />
+    <h1 style="margin-top:20px">Katalog event</h1><p class="lead">Temukan event yang sedang dibuka dan daftar langsung dari halaman detailnya.</p></div></section>
+  <section class="section" style="padding-top:8px"><div class="wrap">
+    <form class="filters" method="get" role="search" aria-label="Filter event">
+      <div class="field"><label for="q">Cari</label><input class="input" id="q" name="q" value={f.q} maxlength="80" /></div>
+      <div class="field"><label for="c">Kategori</label><select class="input" id="c" name="category"><option value="">Semua</option>{cats?.map((c) => <option value={c.slug} selected={c.slug === f.category}>{c.name}</option>)}</select></div>
+      <div class="field"><label for="l">Lokasi</label><input class="input" id="l" name="location" value={f.location} maxlength="80" /></div>
+      <div class="field"><label for="df">Dari tanggal</label><input class="input" type="date" id="df" name="date_from" value={f.date_from} /></div>
+      <div class="field"><label for="dt">Sampai tanggal</label><input class="input" type="date" id="dt" name="date_to" value={f.date_to} /></div>
+      <div class="row" style="align-self:end">
+        <div class="field"><label class="sr-only" for="pt">Harga</label><select class="input" id="pt" name="price_type"><option value="">Semua harga</option><option value="free" selected={f.price_type === 'free'}>Gratis</option><option value="paid" selected={f.price_type === 'paid'}>Berbayar</option></select></div>
+        <div class="field"><label class="sr-only" for="st">Status</label><select class="input" id="st" name="status"><option value="">Status: dibuka</option><option value="completed" selected={f.status === 'completed'}>Selesai</option><option value="registration_closed" selected={f.status === 'registration_closed'}>Pendaftaran ditutup</option></select></div>
+        <button class="btn" type="submit">Terapkan</button>
+      </div>
+    </form>
+    {chips.length > 0 && <div class="row" style="margin-bottom:20px"><div class="chips" aria-label="Filter aktif">{chips.map(([k, v]) => <a class="chip" href={without(k)}>{labels[k]}: {v}<span class="sr-only"> (hapus filter)</span><span aria-hidden="true">×</span></a>)}</div><a href="/events" class="small">Reset semua</a></div>}
+    {error ? <StateBox kind="error" title="Event belum dapat dimuat" text="Coba muat ulang halaman ini." href={Astro.url.pathname + Astro.url.search} action="Muat ulang" />
+     : data?.length ? <><p class="meta" aria-live="polite">{count} event ditemukan</p><div class="grid grid--3">{data.map((e) => <EventCard e={e} />)}</div><Pagination page={page} total={count ?? 0} pageSize={size} /></>
+     : <StateBox title="Tidak ada event yang cocok" text="Ubah atau hapus sebagian filter untuk melihat lebih banyak event." href="/events" action="Reset filter" />}
+  </div></section>
+</PublicLayout>

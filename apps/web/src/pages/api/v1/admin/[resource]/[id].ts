@@ -1,0 +1,30 @@
+import { route, ok, ApiError, audit } from '../../../../../lib/utils/api';
+import { adminDb } from '../../../../../lib/supabase/server';
+import { byApi, schemaFor, assertPerm } from '../../../../../lib/admin-resources';
+const uuid = /^[0-9a-f-]{36}$/i;
+export const GET = route({ auth: 'admin' }, async ({ ctx }) => {
+  const res = byApi(ctx.params.resource!);
+  if (!res || !uuid.test(ctx.params.id!)) throw new ApiError(404, 'not_found', 'Data tidak ditemukan.');
+  assertPerm(ctx.locals, res.perm);
+  const { data } = await adminDb().from(res.table).select('*').eq('id', ctx.params.id!).maybeSingle();
+  if (!data) throw new ApiError(404, 'not_found', 'Data tidak ditemukan.');
+  return ok(data);
+});
+export const PATCH = route({ auth: 'admin', rate: [60, 60_000] }, async ({ ctx, userId, rid }) => {
+  const res = byApi(ctx.params.resource!);
+  if (!res || !res.edit || !uuid.test(ctx.params.id!)) throw new ApiError(404, 'not_found', 'Data tidak ditemukan.');
+  assertPerm(ctx.locals, res.perm);
+  const parsed = schemaFor(res, true).safeParse(await ctx.request.json().catch(() => null));
+  if (!parsed.success) throw new ApiError(400, 'invalid_request', parsed.error.issues.slice(0, 3).map((i) => `${i.path.join('.')}: ${i.message}`).join('; '));
+  const db = adminDb();
+  const { data: before } = await db.from(res.table).select('*').eq('id', ctx.params.id!).maybeSingle();
+  if (!before) throw new ApiError(404, 'not_found', 'Data tidak ditemukan.');
+  const patch = res.prepare ? res.prepare({ ...before, ...parsed.data }, before) : parsed.data;
+  const keys = Object.keys(patch).filter((k) => k in before || k in parsed.data);
+  const upd = Object.fromEntries(keys.map((k) => [k, (patch as any)[k]]));
+  const { error } = await db.from(res.table).update(upd).eq('id', ctx.params.id!);
+  if (error) throw new ApiError(error.code === '23505' ? 409 : 500, error.code === '23505' ? 'duplicate' : 'internal_error', 'Gagal menyimpan.');
+  const changed = Object.keys(upd).filter((k) => JSON.stringify((before as any)[k]) !== JSON.stringify(upd[k]));
+  await audit(db, { actor: userId, action: `${res.slug}.update`, type: res.table, id: ctx.params.id, before: Object.fromEntries(changed.map((k) => [k, (before as any)[k]])), after: Object.fromEntries(changed.map((k) => [k, upd[k]])), rid });
+  return ok({ id: ctx.params.id });
+});

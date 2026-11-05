@@ -1,0 +1,25 @@
+---
+import PublicLayout from '../layouts/PublicLayout.astro';
+import Breadcrumb from '../components/Breadcrumb.astro';
+const values = [['Kuota akurat', 'Kuota dihitung di database dengan transaksi atomik, sehingga dua orang tidak bisa mengambil kursi terakhir bersamaan.'], ['Pembayaran terverifikasi', 'Status lunas hanya berubah setelah notifikasi penyedia pembayaran lolos validasi.'], ['Transparan', 'Peserta dan admin melihat status yang sama, lengkap dengan riwayat setiap tahap.'], ['Aman by default', 'Data peserta dilindungi hak akses per baris, dan tindakan admin penting tercatat.']];
+---
+<PublicLayout title="Tentang platform" description="Mengapa platform pendaftaran multi-event ini dibuat dan bagaimana cara kerjanya.">
+  <section class="hero"><div class="wrap"><Breadcrumb items={[{ label: 'Beranda', href: '/' }, { label: 'Tentang' }]} />
+    <h1 style="margin-top:20px;max-width:20ch">Pendaftaran event yang tidak membuat peserta bingung.</h1>
+    <p class="lead">Platform ini mengelola banyak event dalam satu website, dari katalog sampai tiket, dengan antrean dan pembayaran otomatis.</p></div></section>
+  <section class="section section--muted"><div class="wrap grid grid--2">
+    <div><h2>Masalah yang ingin diselesaikan</h2></div>
+    <div class="prose"><p>Alur lama memakai QRIS statis, unggah bukti transfer, dan pemeriksaan manual. Peserta yang keluar saat membayar kehilangan konteks, tidak bisa melanjutkan unggah bukti, dan akhirnya mengulang pendaftaran, bahkan dengan identitas transaksi yang berbeda.</p><p>Penyelenggara juga harus memeriksa bukti satu per satu, dan kuota bisa terlampaui ketika pendaftaran ramai.</p></div>
+  </div></section>
+  <section class="section"><div class="wrap grid grid--2">
+    <div><h2>Profil dan fungsi platform</h2></div>
+    <div class="prose"><p>Platform menyediakan katalog event, pendaftaran lewat antrean, pembayaran Midtrans, dashboard peserta, dan Admin Panel untuk mengelola event, transaksi, antrean, dan laporan.</p><p>Peserta dapat menutup halaman pembayaran lalu melanjutkannya dari dashboard selama transaksi masih berlaku.</p></div>
+  </div></section>
+  <section class="section section--muted"><div class="wrap grid grid--2">
+    <article class="card card--pad"><h2 style="font-size:1.5rem">Visi</h2><p class="muted">Pendaftaran event yang adil, jelas statusnya, dan tidak bergantung pada pemeriksaan manual.</p></article>
+    <article class="card card--pad"><h2 style="font-size:1.5rem">Misi</h2><ul class="muted" style="padding-left:18px;margin:0"><li>Menjaga kuota tetap akurat saat lonjakan pendaftaran.</li><li>Mengotomatisasi konfirmasi pembayaran.</li><li>Memberi penyelenggara data yang bisa diaudit.</li></ul></article>
+  </div></section>
+  <section class="section"><div class="wrap"><div class="section-head"><h2>Nilai yang kami pegang</h2><p></p></div>
+    <div class="grid grid--4">{values.map(([t, d]) => <article class="card card--pad"><h3>{t}</h3><p class="muted small" style="margin:0">{d}</p></article>)}</div></div></section>
+  <section class="section section--dark on-dark"><div class="wrap"><div class="section-head" style="margin:0"><h2 style="color:#fff">Mulai dari katalog, atau ajak kami bekerja sama.</h2><div class="row"><a class="btn" href="/events">Lihat event</a><a class="btn btn--secondary" href="/partnership">Ajukan kemitraan</a></div></div></div></section>
+</PublicLayout>

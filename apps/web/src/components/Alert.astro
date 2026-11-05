@@ -1,0 +1,5 @@
+---
+interface Props { tone?: 'info' | 'ok' | 'bad'; id?: string }
+const { tone = 'info', id } = Astro.props;
+---
+<div class={`alert ${tone === 'ok' ? 'alert--ok' : tone === 'bad' ? 'alert--bad' : ''}`} role={tone === 'bad' ? 'alert' : 'status'} id={id}><slot /></div>

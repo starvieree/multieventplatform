@@ -1,0 +1,16 @@
+---
+import FormField from './FormField.astro';
+import { toInputDateTime } from '../lib/utils/format';
+import type { Resource } from '../lib/admin-resources';
+interface Props { res: Resource; item?: Record<string, any> | null }
+const { res, item = null } = Astro.props;
+const endpoint = `/api/v1/admin/${res.api}${item ? `/${item.id}` : ''}`;
+---
+<form class="form card card--pad" style="max-width:720px" data-json-form data-method={item ? 'PATCH' : 'POST'} data-endpoint={endpoint} data-redirect={`/admin/dashboard/${res.slug}`} data-success="Tersimpan.">
+  {res.fields.map((f) => f.type === 'image'
+    ? <div class="field" data-upload><label for={`f-${f.key}`}>{f.label}</label><div class="row"><input class="input" style="flex:1" id={`f-${f.key}`} name={f.key} type="text" value={item?.[f.key] ?? ''} readonly /><label class="btn btn--secondary btn--sm" style="margin:0">Unggah<input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" data-file /></label></div><div class="hint">JPG, PNG, atau WebP, maksimal 2 MB.</div></div>
+    : <FormField name={f.key} label={f.label} required={f.required} hint={f.hint} type={f.type === 'datetime' ? 'datetime-local' : f.type} value={f.type === 'datetime' ? toInputDateTime(item?.[f.key]) : item ? item[f.key] : f.type === 'checkbox' ? true : ''} options={f.options} rows={f.key === 'content' ? 14 : 4} />)}
+  <div data-feedback hidden></div>
+  <div class="row"><button class="btn" type="submit">Simpan</button><a class="btn btn--secondary" href={`/admin/dashboard/${res.slug}`}>Batal</a></div>
+</form>
+<script>import '../scripts/json-form.ts'; import '../scripts/upload.ts';</script>
