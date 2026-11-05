@@ -1,0 +1,200 @@
+---
+import PublicLayout from "../../layouts/PublicLayout.astro";
+import Badge from "../../components/Badge.astro";
+import DataTable from "../../components/DataTable.astro";
+import Pagination from "../../components/Pagination.astro";
+import StateBox from "../../components/StateBox.astro";
+import { fmtDate, rupiah } from "../../lib/utils/format";
+import { nextAction } from "../../lib/utils/registration";
+
+const sb = Astro.locals.supabase;
+const sp = Astro.url.searchParams;
+const filterStatus = sp.get("status") ?? "";
+const page = Math.max(1, Number(sp.get("page") ?? 1) || 1);
+const size = 10;
+
+// 1. Ambil pendaftaran aktif (Menunggu Tindakan / Keranjang Aktif)
+const { data: rawPending } = await sb
+  .from("registrations")
+  .select(
+    "id, registration_code, registration_status, payment_status, total_amount, created_at, event:events(title, slug, start_at), reservations:quota_reservations(status,expires_at)",
+  )
+  .in("registration_status", ["draft", "awaiting_payment"])
+  .order("created_at", { ascending: false });
+
+const nowTime = Date.now();
+const pendingData = (rawPending ?? []).filter((r: any) => {
+  return (r.reservations ?? []).some(
+    (res: any) =>
+      res.status === "reserved" && new Date(res.expires_at).getTime() > nowTime,
+  );
+});
+
+// 2. Ambil riwayat pendaftaran
+let q = sb
+  .from("registrations")
+  .select(
+    "id, registration_code, registration_status, payment_status, total_amount, created_at, event:events(title)",
+    { count: "exact" },
+  );
+
+if (filterStatus) {
+  q = q.eq("registration_status", filterStatus);
+}
+
+const {
+  data: historyData,
+  count,
+  error,
+} = await q
+  .order("created_at", { ascending: false })
+  .range((page - 1) * size, page * size - 1);
+---
+
+<PublicLayout title="Pesanan & Transaksi">
+  <div class="wrap" style="padding: 32px 0 64px;">
+    <div style="margin-bottom: 28px;">
+      <h1 style="font-size: clamp(1.8rem, 3.5vw, 2.4rem); margin-bottom: 6px;">
+        Pesanan & Transaksi
+      </h1>
+      <p class="lead" style="margin: 0; font-size: 1rem;">
+        Kelola tiket yang sedang dipesan dan pantau riwayat pembayaran Anda.
+      </p>
+    </div>
+
+    <!-- Section 1: Pesanan Menunggu Tindakan (Keranjang Aktif) -->
+    {
+      pendingData && pendingData.length > 0 && (
+        <section style="margin-bottom: 36px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <h2 style="font-size: 1.25rem; margin: 0;">
+              Pesanan Perlu Diselesaikan
+            </h2>
+            <span class="badge badge--warn">{pendingData.length} Menunggu</span>
+          </div>
+          <div class="stack" style="gap: 12px;">
+            {pendingData.map((r: any) => {
+              const action = nextAction(r);
+              return (
+                <div
+                  class="card card--pad"
+                  style="border-left: 4px solid #f59e0b; background: color-mix(in srgb, #fef3c7 15%, var(--dp-color-panel));"
+                >
+                  <div class="row between" style="gap: 16px;">
+                    <div>
+                      <div
+                        class="meta"
+                        style="font-size: 0.8rem; margin-bottom: 4px;"
+                      >
+                        NO. PESANAN: {r.registration_code}
+                      </div>
+                      <b style="font-size: 1.15rem; display: block; margin-bottom: 4px;">
+                        {r.event?.title}
+                      </b>
+                      <div class="meta">
+                        Total:{" "}
+                        <strong style="color:var(--dp-color-accent);font-size:1rem;">
+                          {rupiah(r.total_amount)}
+                        </strong>
+                      </div>
+                    </div>
+                    <div class="row" style="gap: 10px;">
+                      <Badge status={r.registration_status} />
+                      {action && (
+                        <a class="btn btn--sm" href={action.href}>
+                          {action.label}
+                        </a>
+                      )}
+                      <a
+                        class="btn btn--secondary btn--sm"
+                        href={`/pesanan/${r.id}`}
+                      >
+                        Detail
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )
+    }
+
+    <!-- Section 2: Riwayat Pendaftaran & Transaksi -->
+    <section>
+      <div class="row between" style="margin-bottom: 16px;">
+        <h2 style="font-size: 1.25rem; margin: 0;">Riwayat Pendaftaran</h2>
+        <form method="get" class="row" style="gap: 8px;">
+          <select
+            class="input"
+            name="status"
+            style="padding: 6px 12px; font-size: 0.85rem;"
+            onchange="this.form.submit()"
+          >
+            <option value="">Semua Status</option>
+            <option value="confirmed" selected={filterStatus === "confirmed"}
+              >Terkonfirmasi</option
+            >
+            <option
+              value="awaiting_payment"
+              selected={filterStatus === "awaiting_payment"}
+              >Menunggu Pembayaran</option
+            >
+            <option value="draft" selected={filterStatus === "draft"}
+              >Draf</option
+            >
+            <option value="cancelled" selected={filterStatus === "cancelled"}
+              >Dibatalkan</option
+            >
+            <option value="expired" selected={filterStatus === "expired"}
+              >Kedaluwarsa</option
+            >
+          </select>
+        </form>
+      </div>
+
+      {
+        error ? (
+          <StateBox
+            kind="error"
+            title="Gagal memuat riwayat"
+            text="Terjadi kesalahan saat mengambil data."
+            href="/pesanan"
+            action="Coba lagi"
+          />
+        ) : (
+          <>
+            <DataTable
+              caption="Riwayat Pesanan"
+              empty="Belum ada riwayat pesanan."
+              rows={historyData ?? []}
+              cols={[
+                {
+                  key: "registration_code",
+                  label: "Kode Pesanan",
+                  type: "link",
+                  href: (r) => `/pesanan/${r.id}`,
+                },
+                { key: "event.title", label: "Event" },
+                {
+                  key: "registration_status",
+                  label: "Status Pendaftaran",
+                  type: "badge",
+                },
+                {
+                  key: "payment_status",
+                  label: "Status Pembayaran",
+                  type: "badge",
+                },
+                { key: "total_amount", label: "Total", type: "money" },
+                { key: "created_at", label: "Tanggal", type: "date" },
+              ]}
+            />
+            <Pagination page={page} total={count ?? 0} pageSize={size} />
+          </>
+        )
+      }
+    </section>
+  </div>
+</PublicLayout>

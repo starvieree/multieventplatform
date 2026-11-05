@@ -9,7 +9,8 @@ export const eventBodySchema = z.object({
     category_id: z.string().uuid().nullable().optional().transform((v) => v ?? null), organizer_name: opt(150), title: z.string().trim().min(3).max(200), slug: z.string().trim().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'slug huruf kecil, angka, dan tanda hubung').max(120),
     summary: opt(400), description: opt(20000), poster_path: opt(300), banner_path: opt(300), poster_alt: opt(200), event_type: z.enum(['offline', 'online', 'hybrid']), venue_name: opt(200), address: opt(400),
     online_url: z.string().trim().url().max(400).optional().or(z.literal('')).transform((v) => v || null), start_at: dt, end_at: dt, registration_opens_at: dt, registration_closes_at: dt,
-    total_quota: z.coerce.number().int().min(0).max(1_000_000), max_per_user: z.coerce.number().int().min(1).max(20), requirements: opt(5000),
+    total_quota: z.coerce.number().int().min(0).max(1_000_000), max_per_user: z.coerce.number().int().min(1).max(20),
+    allow_multiple_categories: z.boolean().default(false), requirements: opt(5000),
     faq: z.array(z.object({ q: z.string().trim().min(1).max(200), a: z.string().trim().min(1).max(2000) })).max(30).default([]), meta_title: opt(120), meta_description: opt(300), og_image_path: opt(300),
   }).refine((e) => new Date(e.end_at!) >= new Date(e.start_at!), { message: 'waktu selesai harus setelah waktu mulai', path: ['end_at'] })
     .refine((e) => new Date(e.registration_closes_at!) >= new Date(e.registration_opens_at!), { message: 'penutupan pendaftaran harus setelah pembukaan', path: ['registration_closes_at'] }),

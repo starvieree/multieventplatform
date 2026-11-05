@@ -20,8 +20,10 @@ ALUR
 11. Simpan notifikasi dan proses status secara idempotent.
 12. Jika paid valid: transaction paid, reservation confirmed, registration
     confirmed, ticket diterbitkan, notification dibuat.
-13. Jika failed/cancel/expired: update status dan release reservation jika
-    masih reserved serta tidak ada pembayaran valid.
+13. Jika failed/cancel/expired: update status pendaftaran dan transaksi,
+    lepaskan kuota reservasi kembali ke publik secara real-time. Peserta
+    disediakan tombol aksi "Daftar Ulang" di halaman pembayaran, status,
+    dan detail pesanan (/pesanan/:id) untuk mendaftar kembali secara bersih.
 
 STATUS MAPPING KONSEPTUAL
 pending -> pending

@@ -1,5 +1,5 @@
 // Redirect hanya ke path internal. Menolak //host, \, skema, karakter kontrol, dan /api.
-export function safeRedirect(next: string | null | undefined, fallback = '/dashboard'): string {
+export function safeRedirect(next: string | null | undefined, fallback = '/tiket-saya'): string {
   if (!next || typeof next !== 'string' || next.length > 500) return fallback;
   if (!next.startsWith('/') || next.startsWith('//') || next.includes('\\') || /[\u0000-\u001f]/.test(next)) return fallback;
   try {

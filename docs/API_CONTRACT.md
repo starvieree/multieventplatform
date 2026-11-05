@@ -48,7 +48,7 @@ tidak boleh mengubah transaksi.
 
 ADMIN
 GET /admin/dashboard/summary
-GET/POST /admin/events
+GET/POST /admin/events (Body event menyertakan allow_multiple_categories boolean)
 GET/PATCH /admin/events/:id
 POST /admin/events/:id/publish
 POST /admin/events/:id/archive
@@ -82,14 +82,31 @@ GET /admin/reports/queue
 Tidak menyediakan endpoint umum untuk mengubah transaksi menjadi paid secara
 manual. Adjustment harus memiliki permission, alasan, dan audit log.
 
-HTTP STATUS
-200 sukses; 201 dibuat; 202 antrean diterima; 400 request invalid; 401 belum
-login; 403 forbidden; 404 tidak ditemukan/tidak dapat diakses; 409 conflict/
-kuota penuh/idempotency conflict; 422 validasi bisnis; 429 rate limit;
-500 error server; 503 dependency tidak tersedia.
+HTTP STATUS & BUSINESS ERROR CODES
+- 200: sukses
+- 201: dibuat (created)
+- 202: antrean pendaftaran diterima (accepted)
+- 400: request invalid / format salah
+- 401: unauthenticated (belum login)
+- 403: forbidden (tidak ada izin)
+- 404: data tidak ditemukan
+- 409: conflict (kuota penuh, IDEMPOTENCY_CONFLICT, RESERVATION_EXPIRED, INVALID_STATE)
+- 422: validasi bisnis gagal:
+  * USER_LIMIT: Batas akumulasi pendaftaran tiket per akun tercapai (max_per_user).
+  * CATEGORY_LIMIT: Event membatasi 1 kategori tiket per akun dan peserta sudah terdaftar di kategori lain.
+  * REGISTRATION_CLOSED: Periode pendaftaran belum dibuka atau sudah ditutup.
+  * INVALID_CATEGORY: Kategori tiket tidak aktif atau di luar periode penjualan.
+  * QUOTA_FULL: Kuota tiket sudah habis.
+  * QUOTA_BELOW_USED: Admin mencoba menurunkan kuota di bawah jumlah yang sudah terpakai.
+- 429: rate limit terlampaui
+- 500: error internal server
+- 503: dependency eksternal tidak tersedia
 
-IDEMPOTENCY
-Queue request key unik. Key sama + payload sama mengembalikan hasil lama.
-Key sama + payload berbeda menghasilkan conflict. Payment session dan webhook
-juga deduplicated. Gunakan unique constraint database.
+IDEMPOTENCY & SIKLUS HIDUP ANTREAN
+- Queue request key unik berbasis (user_id + idempotency_key).
+- Mencegah klik ganda / reload berulang saat transaksi sedang aktif.
+- Jika pendaftaran sebelumnya telah KEDALUWARSA (expired) atau DIBATALKAN (cancelled),
+  sistem tidak akan mereplay pendaftaran yang mati tersebut. Browser mengirimkan
+  kunci antrean baru (fresh UUID) sehingga peserta dapat mendaftar ulang secara bersih.
+- Payment session Midtrans dan notifikasi webhook juga deduplicated idempotent.
 ```

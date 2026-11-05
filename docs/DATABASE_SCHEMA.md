@@ -26,11 +26,14 @@ id, name, slug unique, description, icon, is_active, timestamps.
 
 7. events
 id, category_id FK, organizer_name, title, slug unique, summary, description,
-poster_path, banner_path, event_type, venue_name, address, online_url,
+poster_path, banner_path, poster_alt, event_type, venue_name, address, online_url,
 start_at, end_at, registration_opens_at, registration_closes_at, total_quota,
-max_per_user, status, created_by, timestamps.
+max_per_user, allow_multiple_categories boolean default false, requirements,
+faq JSONB, meta_title, meta_description, og_image_path, status, created_by, timestamps.
 Status draft/published/registration_closed/ongoing/completed/archived.
 Check quota >= 0 dan end_at >= start_at.
+allow_multiple_categories: jika false (default), akun dibatasi 1 kategori tiket
+per event. Jika true, akun diizinkan mendaftar lebih dari 1 kategori tiket (multi-track).
 
 8. ticket_categories
 id, event_id FK, name, description, price numeric, quota, sales_start_at,
@@ -107,11 +110,18 @@ events 1:N event_form_fields; registrations 1:N answers/reservations/transaction
 transactions 1:N payment_notifications; registrations 1:N tickets.
 profiles M:N roles melalui user_roles; roles M:N permissions.
 
-KUOTA
-available = total_quota - reserved_aktif - confirmed.
-Reservation confirmed tidak boleh dihitung sebagai reserved.
-Jika kuota event dan kategori tiket sama-sama membatasi, keduanya diperiksa dalam
-satu database transaction. Tetapkan model inventory dengan jelas.
+KUOTA & REAL-TIME INVENTORY
+- available = total_quota - (confirmed + (reserved AND expires_at > now()))
+- View publik:
+  * event_listing: menghitung sisa slot event secara real-time.
+  * ticket_availability: menghitung sisa slot per kategori tiket secara real-time.
+- Self-Healing: Begitu reservasi lewat dari batas waktu (expires_at < now()),
+  kuota otomatis kembali ke publik detik itu juga tanpa harus menunggu cron worker.
+- Proaktif cleanup: fungsi request_registration_queue otomatis memanggil
+  expire_reservations() untuk memperbarui baris kedaluwarsa.
+- Re-registration: Pendaftaran berstatus expired/cancelled tidak dihitung ke
+  dalam USER_LIMIT maupun CATEGORY_LIMIT, sehingga peserta dapat mendaftar ulang
+  selama kuota publik masih tersedia.
 
 RLS
 profiles: user baca/update sendiri.

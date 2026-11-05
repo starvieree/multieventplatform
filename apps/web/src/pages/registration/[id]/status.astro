@@ -4,11 +4,12 @@ import Badge from '../../../components/Badge.astro';
 import Timeline from '../../../components/Timeline.astro';
 import { rupiah } from '../../../lib/utils/format';
 import { nextAction, timeline } from '../../../lib/utils/registration';
-const { data: r } = await Astro.locals.supabase.from('registrations').select('id,registration_code,registration_status,payment_status,total_amount,event:events(title),tickets(id)').eq('id', Astro.params.id!).maybeSingle();
+const { data: r } = await Astro.locals.supabase.from('registrations').select('id,registration_code,registration_status,payment_status,total_amount,event:events(title,slug),tickets(id)').eq('id', Astro.params.id!).maybeSingle();
 if (!r) return Astro.rewrite('/404');
 const a = nextAction(r as any), hasTicket = ((r as any).tickets ?? []).length > 0;
-const msg: Record<string, string> = { confirmed: 'Pendaftaran Anda terkonfirmasi. Tiket sudah terbit.', awaiting_payment: r.payment_status === 'pending' ? 'Menunggu konfirmasi pembayaran. Ini bisa memakan waktu beberapa saat setelah Anda membayar.' : 'Pembayaran belum selesai.', draft: 'Formulir belum dilengkapi.', cancelled: 'Pendaftaran dibatalkan.', expired: 'Waktu reservasi berakhir dan kuota dilepas.' };
+const msg: Record<string, string> = { confirmed: 'Pendaftaran Anda terkonfirmasi. Tiket sudah terbit.', awaiting_payment: r.payment_status === 'pending' ? 'Menunggu konfirmasi pembayaran. Ini bisa memakan waktu beberapa saat setelah Anda membayar.' : 'Pembayaran belum selesai.', draft: 'Formulir belum dilengkapi.', cancelled: 'Pendaftaran dibatalkan.', expired: 'Waktu reservasi berakhir dan kuota dilepas. Anda dapat mendaftar ulang bila kuota masih tersedia.' };
 const waiting = r.registration_status === 'awaiting_payment';
+const isExpiredOrCancelled = ['expired', 'cancelled'].includes(r.registration_status);
 ---
 <PublicLayout title="Status pendaftaran" noindex>
   <section class="section"><div class="wrap" style="max-width:680px"><h1 style="font-size:2.2rem">Status pendaftaran</h1>
@@ -17,7 +18,7 @@ const waiting = r.registration_status === 'awaiting_payment';
       <p aria-live="polite" id="s-msg" style="margin:0">{msg[r.registration_status]}{r.registration_status === 'cancelled' && r.payment_status === 'paid' ? ' Pembayaran Anda terdeteksi; tim kami akan menghubungi untuk proses pengembalian dana.' : ''}</p>
       <dl class="kv"><dt>Kode</dt><dd>{r.registration_code}</dd><dt>Total</dt><dd>{rupiah(r.total_amount)}</dd></dl>
       <Timeline steps={timeline(r as any, hasTicket)} />
-      <div class="row">{a && <a class="btn" href={a.href}>{a.label}</a>}{hasTicket && <a class="btn" href="/dashboard/tickets">Lihat tiket</a>}{waiting && <button class="btn btn--secondary" id="refresh" type="button">Segarkan status</button>}<a class="btn btn--secondary" href={`/dashboard/registrations/${r.id}`}>Detail pendaftaran</a></div>
+      <div class="row">{isExpiredOrCancelled && (r as any).event?.slug && <a class="btn" href={`/events/${(r as any).event.slug}#daftar`}>Daftar Ulang</a>}{a && <a class="btn" href={a.href}>{a.label}</a>}{hasTicket && <a class="btn" href="/tiket-saya">Lihat tiket</a>}{waiting && <button class="btn btn--secondary" id="refresh" type="button">Segarkan status</button>}<a class="btn btn--secondary" href={`/pesanan/${r.id}`}>Detail pendaftaran</a></div>
     </div></div></section>
   <script>import '../../../scripts/status.ts';</script>
 </PublicLayout>

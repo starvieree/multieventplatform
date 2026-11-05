@@ -1,0 +1,123 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import Badge from '../../components/Badge.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import Timeline from '../../components/Timeline.astro';
+import { fmtDate, rupiah } from '../../lib/utils/format';
+import { nextAction, timeline } from '../../lib/utils/registration';
+
+const { data: r } = await Astro.locals.supabase
+  .from('registrations')
+  .select('*, event:events(title,slug,start_at,end_at,venue_name,address), ticket:ticket_categories(name), transactions(order_id,transaction_status,payment_type,gross_amount,paid_at,created_at), answers:registration_answers(field_label_snapshot,answer), tickets(id,ticket_code,status), reservations:quota_reservations(status,expires_at)')
+  .eq('id', Astro.params.id!)
+  .maybeSingle();
+
+if (!r) return Astro.rewrite('/404');
+const a = nextAction(r as any);
+const res = (r as any).reservations?.find((x: any) => x.status === 'reserved');
+---
+<PublicLayout title={`Detail Pesanan ${r.registration_code}`}>
+  <div class="wrap" style="padding: 24px 0 64px;">
+    <Breadcrumb items={[{ label: 'Beranda', href: '/' }, { label: 'Pesanan & Transaksi', href: '/pesanan' }, { label: r.registration_code }]} />
+
+    <div class="row between" style="margin: 20px 0 16px;">
+      <div>
+        <span class="meta" style="font-size: 0.85rem; font-weight: 600;">NO. PESANAN: {r.registration_code}</span>
+        <h1 style="font-size: clamp(1.6rem, 3vw, 2.2rem); margin: 4px 0 0;">{r.event?.title}</h1>
+      </div>
+      <div class="row" style="gap: 8px;">
+        <Badge status={r.registration_status} />
+        <Badge status={r.payment_status} />
+      </div>
+    </div>
+
+    {a && (
+      <div class="alert" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <strong>Tindakan diperlukan: </strong>
+          {res ? `Selesaikan sebelum ${fmtDate(res.expires_at, true)} agar kuota tidak hangus.` : 'Silakan selesaikan pendaftaran Anda.'}
+        </div>
+        <a class="btn btn--sm" href={a.href}>{a.label}</a>
+      </div>
+    )}
+
+    {!a && (r.registration_status === 'expired' || r.registration_status === 'cancelled') && (
+      <div class="alert" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; background: #fffbeb; border-color: #fde68a; color: #92400e;">
+        <div>
+          <strong>Status: </strong>
+          {r.registration_status === 'expired' ? 'Waktu pembayaran atau reservasi tiket ini telah berakhir dan kuota telah dilepas.' : 'Pendaftaran ini telah dibatalkan.'} Bila kuota masih tersedia, Anda dapat mendaftar ulang.
+        </div>
+        {r.event?.slug && <a class="btn btn--sm" href={`/events/${r.event.slug}#daftar`}>Daftar Ulang</a>}
+      </div>
+    )}
+
+    {((r as any).tickets ?? []).length > 0 && (
+      <div class="card card--pad" style="border-left: 4px solid var(--dp-color-accent); margin-bottom: 24px; background: color-mix(in srgb, var(--accent-tint) 35%, var(--dp-color-panel));">
+        <div class="row between" style="gap: 12px;">
+          <div>
+            <b style="font-size: 1.1rem; display: block; margin-bottom: 2px;">Tiket Resmi Anda Sudah Terbit!</b>
+            <span class="meta">Klik tombol berikut untuk membuka dan mencetak e-ticket Anda.</span>
+          </div>
+          <div class="row" style="gap: 8px;">
+            {(r as any).tickets.map((t: any) => (
+              <a class="btn btn--sm" href={`/tiket-saya/${t.id}`}>Buka Tiket ({t.ticket_code})</a>
+            ))}
+          </div>
+        </div>
+      </div>
+    )}
+
+    <div class="grid grid--2" style="align-items:start; gap: 20px;">
+      <section class="card card--pad">
+        <h2 style="font-size: 1.2rem; margin-bottom: 16px;">Ringkasan Tiket</h2>
+        <dl class="kv" style="gap: 10px 16px;">
+          <dt>Kategori</dt><dd><b>{r.ticket?.name}</b></dd>
+          <dt>Jumlah</dt><dd>{r.quantity} Tiket</dd>
+          <dt>Total Biaya</dt><dd><strong style="color:var(--dp-color-accent);font-size:1.05rem;">{rupiah(r.total_amount)}</strong></dd>
+          <dt>Jadwal Event</dt><dd>{fmtDate(r.event?.start_at, true)} WIB</dd>
+          <dt>Lokasi</dt><dd>{[r.event?.venue_name, r.event?.address].filter(Boolean).join(', ') || '—'}</dd>
+        </dl>
+      </section>
+
+      <section class="card card--pad">
+        <h2 style="font-size: 1.2rem; margin-bottom: 16px;">Status Progres</h2>
+        <Timeline steps={timeline(r as any, ((r as any).tickets ?? []).length > 0)} />
+      </section>
+
+      <section class="card card--pad">
+        <h2 style="font-size: 1.2rem; margin-bottom: 16px;">Riwayat Pembayaran</h2>
+        {((r as any).transactions ?? []).length ? (
+          <ul class="stack" style="list-style:none;padding:0;gap:10px;">
+            {(r as any).transactions.map((t: any) => (
+              <li style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--dp-color-rule);">
+                <div>
+                  <div style="font-weight:600;">{rupiah(t.gross_amount)}</div>
+                  <span class="meta">{t.payment_type ? `Metode: ${t.payment_type}` : 'Menunggu pilihan metode'} · {fmtDate(t.created_at, true)}</span>
+                </div>
+                <Badge status={t.transaction_status} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="muted" style="margin: 0;">Belum ada catatan transaksi.</p>
+        )}
+      </section>
+
+      <section class="card card--pad">
+        <h2 style="font-size: 1.2rem; margin-bottom: 16px;">Data Formulir Pendaftaran</h2>
+        {((r as any).answers ?? []).length ? (
+          <dl class="kv" style="gap: 10px 16px;">
+            {(r as any).answers.map((x: any) => (
+              <>
+                <dt>{x.field_label_snapshot}</dt>
+                <dd>{typeof x.answer === 'boolean' ? (x.answer ? 'Ya' : 'Tidak') : String(x.answer ?? '—')}</dd>
+              </>
+            ))}
+          </dl>
+        ) : (
+          <p class="muted" style="margin: 0;">Formulir tambahan belum diisi.</p>
+        )}
+      </section>
+    </div>
+  </div>
+</PublicLayout>

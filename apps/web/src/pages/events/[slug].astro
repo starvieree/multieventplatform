@@ -12,6 +12,21 @@ const { data: ev } = await sb
   .eq("slug", slug!)
   .maybeSingle();
 if (!ev) return Astro.rewrite("/404");
+
+const user = Astro.locals.user;
+let userRegs: any[] = [];
+if (user) {
+  const { data: myRegs } = await sb
+    .from("registrations")
+    .select(
+      "id, ticket_category_id, quantity, registration_status, payment_status, ticket:ticket_categories(name), reservations:quota_reservations(status,expires_at)",
+    )
+    .eq("event_id", ev.id)
+    .eq("user_id", user.id)
+    .in("registration_status", ["draft", "awaiting_payment", "confirmed"]);
+  userRegs = myRegs ?? [];
+}
+
 const [
   { data: tickets },
   { data: avail },
@@ -50,8 +65,50 @@ const sellable = (tickets ?? []).filter(
     (!t.sales_start_at || now >= +new Date(t.sales_start_at)) &&
     (!t.sales_end_at || now <= +new Date(t.sales_end_at)),
 );
+
+// Hanya hitung pendaftaran yang benar-benar aktif (confirmed, atau draft/awaiting_payment yang reservasinya belum lewat waktu)
+const activeRegs = userRegs.filter((r: any) => {
+  if (r.registration_status === "confirmed") return true;
+  return (r.reservations ?? []).some(
+    (res: any) =>
+      res.status === "reserved" && new Date(res.expires_at).getTime() > now,
+  );
+});
+const hasExpiredPriorReg = userRegs.length > 0 && activeRegs.length === 0;
+
+const activeCategoryIds = new Set(
+  activeRegs.map((r: any) => r.ticket_category_id),
+);
+const hasActiveReg = activeRegs.length > 0;
+const totalUserTickets = activeRegs.reduce(
+  (sum: number, r: any) => sum + (r.quantity ?? 1),
+  0,
+);
+const userReachedLimit = !!user && totalUserTickets >= ev.max_per_user;
+const isSingleCategoryRestricted = !ev.allow_multiple_categories;
+
+const registeredCategoryNames = activeRegs
+  .map((r: any) => r.ticket?.name)
+  .filter(Boolean);
+const primaryRegisteredName = registeredCategoryNames[0] ?? "kategori lain";
+
 const canRegister =
-  windowOpen && sellable.some((t) => (left.get(t.id) ?? 0) > 0);
+  windowOpen &&
+  !userReachedLimit &&
+  sellable.some((t) => {
+    const a = left.get(t.id) ?? 0;
+    if (a <= 0) return false;
+    if (
+      user &&
+      isSingleCategoryRestricted &&
+      hasActiveReg &&
+      !activeCategoryIds.has(t.id)
+    ) {
+      return false;
+    }
+    return true;
+  });
+
 const reason =
   ev.status !== "published"
     ? "Pendaftaran untuk event ini sudah ditutup."
@@ -59,7 +116,12 @@ const reason =
       ? `Pendaftaran dibuka ${fmtDate(ev.registration_opens_at, true)}.`
       : now > +new Date(ev.registration_closes_at)
         ? "Periode pendaftaran sudah berakhir."
-        : "Kuota sudah penuh.";
+        : userReachedLimit
+          ? `Anda sudah mencapai batas maksimum pendaftaran (${ev.max_per_user} tiket) untuk akun ini.`
+          : isSingleCategoryRestricted && hasActiveReg
+            ? `Event ini membatasi 1 kategori tiket per akun. Anda sudah terdaftar di kategori ${primaryRegisteredName}.`
+            : "Kuota sudah penuh.";
+
 const poster = mediaUrl(ev.poster_path ?? ev.banner_path);
 const faq = (Array.isArray(ev.faq) ? ev.faq : []) as {
   q?: string;
@@ -71,13 +133,41 @@ const next = encodeURIComponent(`/events/${ev.slug}#daftar`);
 
 const getTicketMeta = (t: any) => {
   const a = left.get(t.id) ?? 0;
-  const ok = windowOpen && sellable.includes(t) && a > 0;
-  const status = ok ? `${a} tiket tersisa` : a <= 0 ? "Habis" : "Belum dijual";
+  const isRegistered = activeCategoryIds.has(t.id);
+  const isLockedAnother =
+    !!user && isSingleCategoryRestricted && hasActiveReg && !isRegistered;
+  const isUserFull = userReachedLimit;
+
+  let ok =
+    windowOpen &&
+    sellable.includes(t) &&
+    a > 0 &&
+    !isLockedAnother &&
+    !isUserFull;
+  let status = "";
+  if (isLockedAnother) {
+    status = "Terkunci · Maks. 1 kategori per akun";
+  } else if (isUserFull) {
+    status = isRegistered
+      ? "✓ Terdaftar (Batas kuota akun tercapai)"
+      : "Batas kuota akun tercapai";
+  } else if (isRegistered) {
+    status = `✓ Terdaftar di kategori ini (${a} tersisa)`;
+  } else if (!windowOpen) {
+    status = "Pendaftaran ditutup";
+  } else if (!sellable.includes(t)) {
+    status = "Belum dijual";
+  } else if (a <= 0) {
+    status = "Habis";
+  } else {
+    status = `${a} tiket tersisa`;
+  }
+
   const end = t.sales_end_at ? ` · sampai ${fmtDate(t.sales_end_at)}` : "";
-  return { a, ok, text: `${status}${end}` };
+  return { a, ok, isRegistered, isLockedAnother, text: `${status}${end}` };
 };
 const defaultTicketIndex = (tickets ?? []).findIndex(
-  (x) => (left.get(x.id) ?? 0) > 0 && sellable.includes(x),
+  (x) => getTicketMeta(x).ok,
 );
 
 const jsonLd = {
@@ -278,18 +368,110 @@ const jsonLd = {
               data-max={ev.max_per_user}
               data-can={canRegister && !!Astro.locals.user ? "1" : "0"}
             >
+              {hasExpiredPriorReg && (
+                <div
+                  class="card card--pad"
+                  style="background:#fef3c7;border:1px solid #fde68a;padding:12px 14px;margin-bottom:14px;border-radius:var(--dp-radius-panel);font-size:0.875rem;color:#92400e"
+                >
+                  <div style="font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:6px">
+                    <span>⏱️ Waktu Pembayaran Sebelumnya Telah Berakhir</span>
+                  </div>
+                  <p style="margin:0;line-height:1.4">
+                    Reservasi tiket Anda sebelumnya telah kadaluarsa dan kuota
+                    sudah dilepas kembali. Anda dapat memilih tiket dan
+                    mendaftar ulang di bawah ini selama kuota masih tersedia.
+                  </p>
+                </div>
+              )}
+              {hasActiveReg && (
+                <div
+                  class="card card--pad"
+                  style="background:var(--accent-tint,#e8f0fe);border:1px solid #bfdbfe;padding:12px 14px;margin-bottom:14px;border-radius:var(--dp-radius-panel);font-size:0.875rem"
+                >
+                  <div style="font-weight:600;color:var(--dp-color-accent);margin-bottom:4px;display:flex;align-items:center;gap:6px">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>Status Pendaftaran Anda</span>
+                  </div>
+                  <p style="margin:0 0 8px 0;color:var(--dp-color-ink);line-height:1.4">
+                    {isSingleCategoryRestricted ? (
+                      <>
+                        Event ini membatasi{" "}
+                        <strong>1 kategori tiket per akun</strong>. Anda saat
+                        ini sudah terdaftar di kategori{" "}
+                        <strong>{primaryRegisteredName}</strong>.
+                      </>
+                    ) : (
+                      <>
+                        Anda sudah terdaftar di kategori{" "}
+                        <strong>{primaryRegisteredName}</strong>. Event ini
+                        mengizinkan Anda mendaftar lebih dari 1 kategori selama
+                        batas kuota akun mencukupi.
+                      </>
+                    )}
+                  </p>
+                  <a
+                    href="/pesanan"
+                    class="btn btn--secondary btn--sm"
+                    style="font-size:0.8rem;padding:4px 10px;text-decoration:none"
+                  >
+                    Lihat detail pesanan &rarr;
+                  </a>
+                </div>
+              )}
               <fieldset style="border:0;padding:0;margin:0" class="stack">
                 <legend class="sr-only">Pilih kategori tiket</legend>
                 {(tickets ?? []).map((t, i) => {
                   const meta = getTicketMeta(t);
                   return (
-                    <label class="ticket">
+                    <label
+                      class={`ticket ${meta.isLockedAnother ? "ticket--locked" : ""} ${meta.isRegistered ? "ticket--registered" : ""}`}
+                      style={
+                        meta.isLockedAnother
+                          ? "opacity:0.65;background:var(--dp-color-ground-muted,#f3f4f6);cursor:not-allowed;"
+                          : undefined
+                      }
+                    >
                       <div>
-                        <b>{t.name}</b>
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                          <b>{t.name}</b>
+                          {meta.isLockedAnother && (
+                            <span style="font-size:0.7rem;padding:1px 6px;border-radius:999px;background:#e5e7eb;color:#4b5563;font-weight:600">
+                              Terkunci
+                            </span>
+                          )}
+                          {meta.isRegistered && (
+                            <span style="font-size:0.7rem;padding:1px 6px;border-radius:999px;background:#dcfce7;color:#166534;font-weight:600">
+                              Terdaftar
+                            </span>
+                          )}
+                        </div>
                         {t.description && (
                           <div class="meta">{t.description}</div>
                         )}
-                        <div class="meta">{meta.text}</div>
+                        <div
+                          class="meta"
+                          style={
+                            meta.isLockedAnother
+                              ? "color:#dc2626;font-weight:500"
+                              : meta.isRegistered
+                                ? "color:#166534;font-weight:500"
+                                : undefined
+                          }
+                        >
+                          {meta.text}
+                        </div>
                       </div>
                       <div style="text-align:right">
                         <span class="price">{rupiah(t.price)}</span>
@@ -310,7 +492,15 @@ const jsonLd = {
               {canRegister && ev.max_per_user > 1 && (
                 <div class="field" style="margin-top:14px">
                   <label for="qty">
-                    Jumlah tiket (maks. {ev.max_per_user})
+                    Jumlah tiket (maks.{" "}
+                    {Math.max(
+                      1,
+                      Math.min(
+                        ev.max_per_user,
+                        ev.max_per_user - totalUserTickets,
+                      ),
+                    )}
+                    )
                   </label>
                   <input
                     class="input"
@@ -318,7 +508,13 @@ const jsonLd = {
                     name="qty"
                     type="number"
                     min="1"
-                    max={ev.max_per_user}
+                    max={Math.max(
+                      1,
+                      Math.min(
+                        ev.max_per_user,
+                        ev.max_per_user - totalUserTickets,
+                      ),
+                    )}
                     value="1"
                   />
                 </div>
@@ -329,6 +525,15 @@ const jsonLd = {
                     <div class="alert" role="status">
                       {reason}
                     </div>
+                    {hasActiveReg && (
+                      <a
+                        class="btn btn--secondary"
+                        style="width:100%;text-align:center"
+                        href="/pesanan"
+                      >
+                        Lihat Pesanan Saya
+                      </a>
+                    )}
                   </>
                 ) : Astro.locals.user ? (
                   <button

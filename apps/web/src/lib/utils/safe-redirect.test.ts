@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 
 describe('safeRedirect', () => {
   it('menerima path internal', () => expect(safeRedirect('/events/konser?x=1')).toBe('/events/konser?x=1'));
-  it.each(['//evil.com', 'https://evil.com', '/\\evil.com', 'javascript:alert(1)', '/api/v1/me', '', null])('menolak %s', (v) => expect(safeRedirect(v as string)).toBe('/dashboard'));
+  it.each(['//evil.com', 'https://evil.com', '/\\evil.com', 'javascript:alert(1)', '/api/v1/me', '', null])('menolak %s', (v) => expect(safeRedirect(v as string)).toBe('/tiket-saya'));
 });
 describe('verifySignature', () => {
   const p = { order_id: 'A-1', status_code: '200', gross_amount: '10000.00' };

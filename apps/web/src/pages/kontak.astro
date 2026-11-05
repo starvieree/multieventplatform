@@ -18,6 +18,6 @@ const faq = [['Berapa lama pesan dibalas?', 'Pesan ditinjau tim kami lalu dibala
       <FormField name="consent" type="checkbox" label="Saya setuju data ini dipakai untuk membalas pesan saya." required />
       <div data-feedback hidden></div><button class="btn" type="submit">Kirim pesan</button></form></div></section>
   <section class="section section--muted"><div class="wrap grid grid--2" style="align-items:start"><div><h2>Pertanyaan umum</h2></div><div>{faq.map(([q, a]) => <details class="faq"><summary>{q}</summary><div>{a}</div></details>)}</div></div></section>
-  <section class="section section--dark on-dark"><div class="wrap"><div class="section-head" style="margin:0"><h2 style="color:#fff">Ingin menyelenggarakan event?</h2><div class="row"><a class="btn" href="/partnership">Ajukan kemitraan</a></div></div></div></section>
+  <section class="section"><div class="wrap"><div class="section-head" style="margin:0"><h2>Ingin menyelenggarakan event?</h2><div class="row"><a class="btn" href="/partnership">Ajukan kemitraan</a></div></div></div></section>
   <script>import '../scripts/json-form.ts';</script>
 </PublicLayout>

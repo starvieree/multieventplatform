@@ -1,0 +1,69 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import Badge from '../../components/Badge.astro';
+import StateBox from '../../components/StateBox.astro';
+import { fmtDate } from '../../lib/utils/format';
+
+const sb = Astro.locals.supabase;
+const { data: tickets, error } = await sb
+  .from('tickets')
+  .select('id, ticket_code, status, attendee_name, issued_at, registration:registrations(registration_code, event:events(title, slug, poster_path, start_at, end_at, event_type, venue_name, address))')
+  .order('issued_at', { ascending: false });
+
+const list = (tickets ?? []).map((t: any) => ({
+  id: t.id,
+  code: t.ticket_code,
+  status: t.status,
+  attendee: t.attendee_name,
+  regCode: t.registration?.registration_code,
+  event: t.registration?.event,
+}));
+---
+<PublicLayout title="Tiket Saya">
+  <div class="wrap" style="padding: 32px 0 64px;">
+    <div style="margin-bottom: 28px;">
+      <h1 style="font-size: clamp(1.8rem, 3.5vw, 2.4rem); margin-bottom: 6px;">Tiket Saya</h1>
+      <p class="lead" style="margin: 0; font-size: 1rem;">Daftar e-ticket event yang sudah terbit. Tunjukkan kode tiket saat check-in di lokasi acara.</p>
+    </div>
+
+    {error ? (
+      <StateBox kind="error" title="Gagal memuat tiket" text="Terjadi kendala koneksi ke database." action="Muat ulang" href="/tiket-saya" />
+    ) : list.length === 0 ? (
+      <StateBox title="Belum ada tiket" text="Anda belum memiliki tiket aktif. Cari event menarik dan amankan tiketmu sekarang!" action="Jelajahi Event" href="/events" />
+    ) : (
+      <div class="grid grid--2" style="gap: 20px;">
+        {list.map((t) => (
+          <article class="card" style="display:flex;flex-direction:column;justify-content:space-between;border-left: 4px solid var(--dp-color-accent);">
+            <div class="card__body" style="padding: 22px;">
+              <div class="row between" style="margin-bottom: 12px;">
+                <span class="meta" style="font-weight:600;letter-spacing:.02em;">E-TICKET</span>
+                <Badge status={t.status} />
+              </div>
+              <h2 style="font-size: 1.25rem; line-height: 1.3; margin-bottom: 12px;">
+                <a href={t.event?.slug ? `/events/${t.event.slug}` : '#'} style="color:var(--dp-color-ink);text-decoration:none;">
+                  {t.event?.title ?? 'Event'}
+                </a>
+              </h2>
+              <dl class="kv" style="font-size: 0.9rem; margin-bottom: 16px;">
+                <dt>Waktu</dt>
+                <dd>{t.event?.start_at ? fmtDate(t.event.start_at, true) : '—'} WIB</dd>
+                <dt>Lokasi</dt>
+                <dd>{t.event?.event_type === 'online' ? 'Online' : [t.event?.venue_name, t.event?.address].filter(Boolean).join(', ') || '—'}</dd>
+                <dt>Peserta</dt>
+                <dd>{t.attendee || '—'}</dd>
+              </dl>
+
+              <div style="background:var(--dp-color-ground-muted);padding:12px 14px;border-radius:var(--radius-control);display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <span class="meta" style="font-size:0.75rem;display:block;">KODE TIKET</span>
+                  <b style="font-size:1.15rem;font-family:var(--font-display);letter-spacing:0.04em;">{t.code}</b>
+                </div>
+                <a class="btn btn--sm" href={`/tiket-saya/${t.id}`}>Buka E-Ticket</a>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    )}
+  </div>
+</PublicLayout>

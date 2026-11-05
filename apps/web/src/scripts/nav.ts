@@ -16,4 +16,38 @@ document.addEventListener('keydown', (e) => {
   panel?.setAttribute('data-open', 'false'); nav?.setAttribute('data-open', 'false');
   navBtn?.setAttribute('aria-expanded', 'false'); pBtn?.setAttribute('aria-expanded', 'false');
   document.querySelectorAll('.nav__drop details[open]').forEach((d) => d.removeAttribute('open'));
+  document.querySelectorAll('.nav__popover-wrap[open]').forEach((d) => d.removeAttribute('open'));
+});
+
+// Tutup popover ketika klik di luar
+document.addEventListener('click', (e) => {
+  const target = e.target as HTMLElement;
+  if (!target.closest('.nav__popover-wrap')) {
+    document.querySelectorAll('.nav__popover-wrap[open]').forEach((d) => d.removeAttribute('open'));
+  }
+  if (!target.closest('.nav__drop')) {
+    document.querySelectorAll('.nav__drop details[open]').forEach((d) => d.removeAttribute('open'));
+  }
+});
+
+// Desktop hover-to-open untuk dropdown .nav__drop (Event)
+document.querySelectorAll<HTMLElement>('.nav__drop').forEach((dropEl) => {
+  const details = dropEl.querySelector('details');
+  if (!details) return;
+
+  let timer: any;
+  dropEl.addEventListener('mouseenter', () => {
+    if (window.innerWidth > 900) {
+      clearTimeout(timer);
+      details.open = true;
+    }
+  });
+
+  dropEl.addEventListener('mouseleave', () => {
+    if (window.innerWidth > 900) {
+      timer = setTimeout(() => {
+        details.open = false;
+      }, 150);
+    }
+  });
 });

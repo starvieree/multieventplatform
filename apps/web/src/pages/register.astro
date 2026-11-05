@@ -2,7 +2,7 @@
 import PublicLayout from '../layouts/PublicLayout.astro';
 import FormField from '../components/FormField.astro';
 import Alert from '../components/Alert.astro';
-if (Astro.locals.user) return Astro.redirect('/dashboard');
+if (Astro.locals.user) return Astro.redirect('/tiket-saya');
 const err = { invalid: 'Periksa kembali nama, email, dan persetujuan Anda.', weak: 'Kata sandi minimal 10 karakter.', mismatch: 'Konfirmasi kata sandi tidak sama.', rate: 'Terlalu banyak percobaan. Coba lagi nanti.' }[Astro.url.searchParams.get('error') ?? ''];
 ---
 <PublicLayout title="Daftar akun" noindex><section class="auth wrap"><div class="card"><h1 style="font-size:2rem">Buat akun</h1>{err && <Alert tone="bad">{err}</Alert>}

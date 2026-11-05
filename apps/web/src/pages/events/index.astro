@@ -21,28 +21,139 @@ if (f.price_type === 'free') q = q.eq('min_price', 0); if (f.price_type === 'pai
 const { data, count, error } = await q.order('start_at').range((page - 1) * size, page * size - 1);
 const { data: cats } = await sb.from('event_categories').select('name,slug').eq('is_active', true).order('name');
 const labels: Record<string, string> = { q: 'Kata kunci', category: 'Kategori', location: 'Lokasi', date_from: 'Dari', date_to: 'Sampai', price_type: 'Harga', status: 'Status' };
-const chips = Object.entries(f).filter(([, v]) => v);
+const getChipValue = (k: string, v: string) => {
+  if (k === 'category') {
+    const found = cats?.find((c) => c.slug === v);
+    return found ? found.name : v;
+  }
+  if (k === 'price_type') return v === 'free' ? 'Gratis' : 'Berbayar';
+  if (k === 'status') {
+    if (v === 'registration_closed') return 'Pendaftaran ditutup';
+    if (v === 'completed') return 'Selesai';
+    return v;
+  }
+  return v;
+};
+const chips = Object.entries(f).filter(([, v]) => Boolean(v));
 const without = (k: string) => { const u = new URL(Astro.url); u.searchParams.delete(k); u.searchParams.delete('page'); return u.pathname + u.search; };
 ---
 <PublicLayout title="Katalog event" description="Cari event berdasarkan kategori, lokasi, tanggal, dan harga.">
   <section class="section--tight"><div class="wrap"><Breadcrumb items={[{ label: 'Beranda', href: '/' }, { label: 'Event' }]} />
     <h1 style="margin-top:20px">Katalog event</h1><p class="lead">Temukan event yang sedang dibuka dan daftar langsung dari halaman detailnya.</p></div></section>
-  <section class="section" style="padding-top:8px"><div class="wrap">
-    <form class="filters" method="get" role="search" aria-label="Filter event">
-      <div class="field"><label for="q">Cari</label><input class="input" id="q" name="q" value={f.q} maxlength="80" /></div>
-      <div class="field"><label for="c">Kategori</label><select class="input" id="c" name="category"><option value="">Semua</option>{cats?.map((c) => <option value={c.slug} selected={c.slug === f.category}>{c.name}</option>)}</select></div>
-      <div class="field"><label for="l">Lokasi</label><input class="input" id="l" name="location" value={f.location} maxlength="80" /></div>
-      <div class="field"><label for="df">Dari tanggal</label><input class="input" type="date" id="df" name="date_from" value={f.date_from} /></div>
-      <div class="field"><label for="dt">Sampai tanggal</label><input class="input" type="date" id="dt" name="date_to" value={f.date_to} /></div>
-      <div class="row" style="align-self:end">
-        <div class="field"><label class="sr-only" for="pt">Harga</label><select class="input" id="pt" name="price_type"><option value="">Semua harga</option><option value="free" selected={f.price_type === 'free'}>Gratis</option><option value="paid" selected={f.price_type === 'paid'}>Berbayar</option></select></div>
-        <div class="field"><label class="sr-only" for="st">Status</label><select class="input" id="st" name="status"><option value="">Status: dibuka</option><option value="completed" selected={f.status === 'completed'}>Selesai</option><option value="registration_closed" selected={f.status === 'registration_closed'}>Pendaftaran ditutup</option></select></div>
-        <button class="btn" type="submit">Terapkan</button>
-      </div>
-    </form>
-    {chips.length > 0 && <div class="row" style="margin-bottom:20px"><div class="chips" aria-label="Filter aktif">{chips.map(([k, v]) => <a class="chip" href={without(k)}>{labels[k]}: {v}<span class="sr-only"> (hapus filter)</span><span aria-hidden="true">×</span></a>)}</div><a href="/events" class="small">Reset semua</a></div>}
-    {error ? <StateBox kind="error" title="Event belum dapat dimuat" text="Coba muat ulang halaman ini." href={Astro.url.pathname + Astro.url.search} action="Muat ulang" />
-     : data?.length ? <><p class="meta" aria-live="polite">{count} event ditemukan</p><div class="grid grid--3">{data.map((e) => <EventCard e={e} />)}</div><Pagination page={page} total={count ?? 0} pageSize={size} /></>
-     : <StateBox title="Tidak ada event yang cocok" text="Ubah atau hapus sebagian filter untuk melihat lebih banyak event." href="/events" action="Reset filter" />}
+  <section class="section" style="padding-top:16px"><div class="wrap">
+    <div class="events-layout">
+      <!-- Sidebar Filter di Kiri -->
+      <aside class="events-aside">
+        <details class="events-filter-drawer" open>
+          <summary class="events-filter-toggle">
+            <span style="display:flex;align-items:center;gap:8px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+              <span>Filter & Pencarian</span>
+            </span>
+            {chips.length > 0 && <span class="badge badge--ok">{chips.length} filter aktif</span>}
+          </summary>
+
+          <div class="events-filter-card">
+            <div class="events-filter-card__head">
+              <h2>Filter Event</h2>
+              {chips.length > 0 && <a href="/events" class="small" style="text-decoration:none;font-weight:600">Reset</a>}
+            </div>
+
+            <form class="events-filter-form" method="get" role="search" aria-label="Filter event">
+              <div class="field">
+                <label for="filter-q">Cari Event</label>
+                <input class="input" id="filter-q" name="q" value={f.q} placeholder="Nama event..." maxlength="80" />
+              </div>
+
+              <div class="field">
+                <label for="filter-c">Kategori</label>
+                <select class="input" id="filter-c" name="category">
+                  <option value="">Semua Kategori</option>
+                  {cats?.map((c) => <option value={c.slug} selected={c.slug === f.category}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="filter-l">Lokasi / Kota</label>
+                <input class="input" id="filter-l" name="location" value={f.location} placeholder="Nama kota atau venue..." maxlength="80" />
+              </div>
+
+              <div class="field">
+                <label for="filter-pt">Jenis Harga</label>
+                <select class="input" id="filter-pt" name="price_type">
+                  <option value="">Semua Harga</option>
+                  <option value="free" selected={f.price_type === 'free'}>Gratis</option>
+                  <option value="paid" selected={f.price_type === 'paid'}>Berbayar</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="filter-st">Status Event</label>
+                <select class="input" id="filter-st" name="status">
+                  <option value="">Sedang Dibuka</option>
+                  <option value="registration_closed" selected={f.status === 'registration_closed'}>Pendaftaran Ditutup</option>
+                  <option value="completed" selected={f.status === 'completed'}>Selesai</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label>Rentang Tanggal</label>
+                <div class="events-date-stack">
+                  <div class="events-date-row">
+                    <span class="events-date-tag">Dari</span>
+                    <input class="input" type="date" id="filter-df" name="date_from" value={f.date_from} title="Dari tanggal" />
+                  </div>
+                  <div class="events-date-row">
+                    <span class="events-date-tag">Sampai</span>
+                    <input class="input" type="date" id="filter-dt" name="date_to" value={f.date_to} title="Sampai tanggal" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="events-filter-actions">
+                <button class="btn" type="submit" style="width:100%">Terapkan Filter</button>
+                {chips.length > 0 && <a class="btn btn--secondary" href="/events" style="width:100%;text-align:center">Reset Filter</a>}
+              </div>
+            </form>
+          </div>
+        </details>
+      </aside>
+
+      <!-- Main Konten Event di Kanan -->
+      <main class="events-main">
+        <div class="events-main__header">
+          <div class="events-main__count">
+            Menampilkan <b>{count ?? 0}</b> event
+          </div>
+          {chips.length > 0 && (
+            <div class="events-main__chips-wrap">
+              <div class="chips" aria-label="Filter aktif">
+                {chips.map(([k, v]) => (
+                  <a class="chip" href={without(k)}>
+                    {labels[k]}: {getChipValue(k, v)}
+                    <span class="sr-only"> (hapus filter)</span>
+                    <span aria-hidden="true">×</span>
+                  </a>
+                ))}
+              </div>
+              <a href="/events" class="small muted" style="text-decoration:none">Reset semua</a>
+            </div>
+          )}
+        </div>
+
+        {error ? (
+          <StateBox kind="error" title="Event belum dapat dimuat" text="Coba muat ulang halaman ini." href={Astro.url.pathname + Astro.url.search} action="Muat ulang" />
+        ) : data?.length ? (
+          <>
+            <div class="events-grid">
+              {data.map((e) => <EventCard e={e} />)}
+            </div>
+            <Pagination page={page} total={count ?? 0} pageSize={size} />
+          </>
+        ) : (
+          <StateBox title="Tidak ada event yang cocok" text="Ubah atau hapus sebagian filter di sebelah kiri untuk melihat lebih banyak event." href="/events" action="Reset filter" />
+        )}
+      </main>
+    </div>
   </div></section>
 </PublicLayout>

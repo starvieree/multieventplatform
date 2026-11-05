@@ -10,7 +10,7 @@ const CSP = [
   `img-src 'self' data: blob: ${SB}`, `connect-src 'self' ${SB} ${MIDTRANS} https://api.sandbox.midtrans.com https://api.midtrans.com`, `frame-src ${MIDTRANS}`,
 ].join('; ');
 
-const PRIVATE = ['/dashboard', '/registration', '/admin'];
+const PRIVATE = ['/registration', '/admin', '/tiket-saya', '/pesanan', '/profil', '/notifikasi'];
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export const onRequest = defineMiddleware(async (ctx, next) => {
@@ -30,11 +30,29 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     const { data } = await ctx.locals.supabase.auth.getUser();
     ctx.locals.user = data.user ?? null;
   }
-  const needsAccess = pathname.startsWith('/admin') || pathname.startsWith('/api/v1/admin');
-  if (ctx.locals.user && needsAccess) {
+  if (ctx.locals.user) {
     const { data } = await ctx.locals.supabase.rpc('my_access');
     ctx.locals.roles = (data?.roles as string[]) ?? [];
     ctx.locals.permissions = (data?.permissions as string[]) ?? [];
+  }
+
+  // Redirect aman rute dashboard lama yang sudah digantikan arsitektur e-commerce
+  if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
+    if (pathname.startsWith('/dashboard/tickets')) {
+      const ticketId = pathname.replace('/dashboard/tickets', '').replace(/^\//, '');
+      return ctx.redirect(ticketId ? `/tiket-saya/${ticketId}` : '/tiket-saya', 301);
+    }
+    if (pathname.startsWith('/dashboard/registrations')) {
+      const regId = pathname.replace('/dashboard/registrations', '').replace(/^\//, '');
+      return ctx.redirect(regId ? `/pesanan/${regId}` : '/pesanan', 301);
+    }
+    if (pathname.startsWith('/dashboard/profile')) {
+      return ctx.redirect('/profil', 301);
+    }
+    if (pathname.startsWith('/dashboard/notifications')) {
+      return ctx.redirect('/notifikasi', 301);
+    }
+    return ctx.redirect('/pesanan', 301);
   }
 
   if (PRIVATE.some((p) => pathname === p || pathname.startsWith(p + '/'))) {

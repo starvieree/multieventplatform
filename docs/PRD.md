@@ -42,10 +42,13 @@ Publik:
 - Privacy Policy dan Terms.
 
 Peserta:
-- Dashboard, Profil, Keamanan, Notifikasi.
-- Pendaftaran Saya, Detail Pendaftaran.
-- Antrean, Formulir Pendaftaran, Pembayaran, Status Pembayaran.
-- Tiket Saya dan Detail Tiket.
+- Pesanan & Transaksi (/pesanan, /pesanan/:id) dengan pemantauan keranjang aktif.
+- Tiket Saya (/tiket-saya, /tiket-saya/:id) lengkap dengan QR Code e-ticket.
+- Profil (/profil) dan Keamanan Akun (/profil/security).
+- Notifikasi (/notifikasi).
+- Alur Pendaftaran: Antrean (/registration/queue/:id), Formulir Dinamis
+  (/registration/:id/form), Pembayaran Snap (/registration/:id/payment),
+  dan Status Pendaftaran (/registration/:id/status).
 
 Admin:
 - Dashboard statistik.
@@ -84,8 +87,17 @@ dilepaskan sesuai state dan kebijakan. Tidak ada upload bukti transfer.
 - Registration status: draft, awaiting_payment, confirmed, cancelled, expired.
 - Payment status: pending, paid, failed, expired, cancelled, refunded.
 - Status event, antrean, reservasi, pendaftaran, pembayaran harus terpisah.
-- Kuota tersedia = total - reserved aktif - confirmed.
+- Pembatasan Kategori Tiket: Setiap event memiliki flag allow_multiple_categories.
+  Jika false (default), akun hanya boleh mendaftar 1 kategori tiket per event.
+  Jika true, akun diizinkan mendaftar lebih dari 1 kategori tiket (multi-track).
+- Batas akumulasi tiket per akun tetap dibatasi oleh max_per_user.
+- Kuota tersedia dihitung dinamis secara real-time:
+  available = total - confirmed - (reserved aktif di mana expires_at > now()).
+- Pelepasan Kuota & Re-registrasi: Saat batas waktu pembayaran/reservasi habis,
+  kuota otomatis kembali ke publik secara real-time, dan peserta yang kedaluwarsa
+  diizinkan untuk mendaftar ulang selama kuota masih tersedia.
 - Perubahan reserved menjadi confirmed tidak boleh dihitung dua kali.
+- Event gratis (total_amount = 0) langsung confirmed dan terbit tiket tanpa Midtrans.
 - Request antrean, transaksi, webhook, dan penerbitan tiket harus idempotent.
 - Nominal pembayaran dihitung backend dari database, bukan dipercaya dari browser.
 - Browser redirect bukan bukti pembayaran.

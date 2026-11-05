@@ -1,0 +1,62 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import FormField from '../../components/FormField.astro';
+import Alert from '../../components/Alert.astro';
+
+const { data: p } = await Astro.locals.supabase
+  .from('profiles')
+  .select('full_name, phone, email')
+  .eq('id', Astro.locals.user!.id)
+  .maybeSingle();
+
+const sp = Astro.url.searchParams;
+const err = {
+  weak: 'Kata sandi minimal 10 karakter.',
+  mismatch: 'Konfirmasi kata sandi tidak sama.',
+  failed: 'Kata sandi belum dapat diubah.',
+}[sp.get('error') ?? ''];
+---
+<PublicLayout title="Pengaturan Akun">
+  <div class="wrap" style="padding: 32px 0 64px;">
+    <div style="margin-bottom: 28px;">
+      <h1 style="font-size: clamp(1.8rem, 3.5vw, 2.4rem); margin-bottom: 6px;">Pengaturan Akun</h1>
+      <p class="lead" style="margin: 0; font-size: 1rem;">Perbarui informasi pribadi dan kelola keamanan akun Anda.</p>
+    </div>
+
+    {sp.get('updated') && <Alert tone="ok">Kata sandi berhasil diperbarui.</Alert>}
+    {err && <Alert tone="bad">{err}</Alert>}
+
+    <div class="grid grid--2" style="align-items: start; gap: 24px; margin-top: 16px;">
+      <!-- Profil Form -->
+      <section class="card card--pad">
+        <h2 style="font-size: 1.25rem; margin-bottom: 4px;">Informasi Pribadi</h2>
+        <p class="meta" style="margin-bottom: 20px;">Data ini digunakan untuk penerbitan e-ticket acara.</p>
+
+        <form class="form" data-json-form data-method="PATCH" data-endpoint="/api/v1/me" data-success="Profil berhasil diperbarui.">
+          <FormField name="email" type="email" label="Alamat Email" value={p?.email} hint="Email login akun Anda (terkunci)." />
+          <FormField name="full_name" label="Nama Lengkap" value={p?.full_name} required autocomplete="name" />
+          <FormField name="phone" type="tel" label="Nomor WhatsApp / Telepon" value={p?.phone} autocomplete="tel" />
+          <div data-feedback hidden></div>
+          <button class="btn" type="submit" style="margin-top: 8px;">Simpan Perubahan</button>
+        </form>
+      </section>
+
+      <!-- Keamanan Form -->
+      <section class="card card--pad">
+        <h2 style="font-size: 1.25rem; margin-bottom: 4px;">Ubah Kata Sandi</h2>
+        <p class="meta" style="margin-bottom: 20px;">Gunakan kombinasi minimal 10 karakter untuk keamanan akun Anda.</p>
+
+        <form class="form" method="post" action="/api/auth/reset">
+          <FormField name="password" type="password" label="Kata Sandi Baru" required autocomplete="new-password" hint="Minimal 10 karakter." />
+          <FormField name="confirm" type="password" label="Konfirmasi Kata Sandi Baru" required autocomplete="new-password" />
+          <button class="btn btn--secondary" type="submit" style="margin-top: 8px;">Perbarui Kata Sandi</button>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    import '../../scripts/json-form.ts';
+    document.getElementById('f-email')?.setAttribute('disabled', 'true');
+  </script>
+</PublicLayout>

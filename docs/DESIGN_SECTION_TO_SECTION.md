@@ -76,29 +76,38 @@ Section 5 nilai/keunggulan.
 Section 6 CTA ke katalog atau partnership.
 
 4. KATALOG EVENT (/events)
-Section 1 judul, deskripsi, breadcrumb.
-Section 2 search dan filter kategori, lokasi, tanggal, gratis/berbayar, status.
-Section 3 chip filter aktif dan reset.
-Section 4 grid event card dengan poster, judul, tanggal, lokasi, harga, status,
-tombol detail.
-Section 5 pagination yang mempertahankan query filter.
-Section 6 empty state dan tombol reset.
+Layout 2 Kolom:
+- Kolom Kiri (Sidebar Sticky .events-aside):
+  * Search kata kunci.
+  * Filter kategori event.
+  * Stack pemilihan rentang tanggal (dari & sampai).
+  * Filter tipe harga (Semua, Gratis, Berbayar).
+  * Tombol Reset Filter.
+  * Mobile view: drawer accordion responsif.
+- Kolom Kanan (Konten Utama .events-main):
+  * Header katalog & indikator jumlah event ditemukan.
+  * Grid Event Cards: poster, badge status, kategori, tanggal, lokasi, harga,
+    dan Quota Loading Bar ("Sisa [X] slot" dengan warna oranye menyala jika sisa <= 20%).
+  * Pagination numerik yang mempertahankan query parameter.
+  * Empty state jika tidak ada event yang cocok.
 
 5. DETAIL EVENT (/events/[slug])
 Section 1 breadcrumb.
 Section 2 hero poster, nama, kategori, tanggal, lokasi, status, harga, CTA Daftar.
-Section 3 ringkasan penyelenggara, jadwal, deadline, lokasi, kuota.
+Section 3 ringkasan penyelenggara, jadwal, deadline, lokasi, kuota total.
 Section 4 deskripsi lengkap.
-Section 5 agenda/jadwal.
-Section 6 kategori tiket: nama, benefit, harga, periode, ketersediaan.
-Section 7 persyaratan peserta.
-Section 8 lokasi/peta jika ada.
-Section 9 FAQ.
-Section 10 event terkait.
-Section 11 CTA pendaftaran.
-Tombol daftar memeriksa event dan login. Jika belum login, arahkan ke login
-dengan redirect internal yang tervalidasi. Setelah login, kembalikan ke event.
-Request antrean hanya dibuat server-side.
+Section 5 persyaratan peserta & lokasi (peta Google Maps).
+Section 6 FAQ accordion.
+Section 7 event terkait.
+Sidebar Pemesanan Tiket Sticky:
+- Kotak status pendaftaran aktif / banner kedaluwarsa jika ada transaksi sebelumnya yang expired.
+- List kategori tiket:
+  * Badge "Terdaftar" untuk tiket yang telah diambil peserta.
+  * Badge "Terkunci" ("Terkunci · Maks. 1 kategori per akun") untuk kategori lain jika event membatasi 1 kategori per akun.
+  * Status sisa tiket per kategori real-time.
+- Pemilihan jumlah tiket (1 s.d. sisa batas akun).
+- Tombol aksi: "Daftar sekarang" / "Masuk untuk mendaftar" / "Lihat Pesanan Saya".
+- Antrean dibuat aman secara server-side dengan kunci idempotensi baru per submit.
 
 6. PARTNERSHIP (/partnership)
 Section 1 hero dan CTA.
@@ -152,56 +161,57 @@ Privacy menjelaskan data, tujuan, pihak ketiga, retensi, hak pengguna, kontak.
 Terms menjelaskan akun, pendaftaran, pembayaran, pembatalan/refund, larangan,
 batas tanggung jawab. Minta review pihak kompeten sebelum produksi.
 
-B. DASHBOARD PESERTA
+B. PORTAL PESERTA
 
-Layout:
-Sidebar: Dashboard, Pendaftaran Saya, Tiket Saya, Notifikasi, Profil, Keamanan,
-Keluar. Header berisi breadcrumb, notifikasi, profil. Mobile memakai drawer.
+Navigasi Peserta (Header / Dropdown Profil):
+Menu: Pesanan Saya (/pesanan), Tiket Saya (/tiket-saya), Notifikasi (/notifikasi),
+Profil (/profil), Keamanan Akun (/profil/security), Keluar.
+Rute legacy /dashboard/* otomatis dialihkan via HTTP 301 ke rute portal peserta.
 
-1. DASHBOARD (/dashboard)
-Greeting nama peserta.
-KPI: total pendaftaran, menunggu pembayaran, confirmed, tiket aktif.
-Pendaftaran terbaru dengan event, tanggal, status, aksi.
-Rekomendasi event yang masih dibuka.
-Preview notifikasi.
+1. PESANAN & TRANSAKSI (/pesanan)
+- Section 1 "Pesanan Perlu Diselesaikan": Kartu sorotan untuk transaksi draft
+  atau awaiting_payment yang reservasinya masih aktif, dilengkapi tombol
+  "Lanjutkan Pembayaran" atau "Lengkapi Formulir" dan countdown batas waktu.
+- Section 2 "Riwayat Pendaftaran": Filter status (Semua, Terkonfirmasi, Menunggu
+  Pembayaran, Draf, Dibatalkan, Kedaluwarsa) dan tabel riwayat dengan kode pesanan,
+  event, status pendaftaran, status pembayaran, total, tanggal, dan aksi detail.
 
-2. PENDAFTARAN SAYA (/dashboard/registrations)
-Filter status registration/payment dan pencarian.
-Tabel/kartu: kode, event, tanggal, kategori, registration status, payment status,
-aksi detail/lanjut bayar/lihat tiket.
+2. DETAIL PESANAN (/pesanan/[id])
+- Header kode pesanan dan badge status.
+- Banner tindakan diperlukan (jika aktif) atau banner kedaluwarsa dengan tombol "Daftar Ulang".
+- Banner penerbitan e-ticket jika pesanan telah terkonfirmasi.
+- Grid 2 kolom:
+  * Kolom Kiri: Rincian event, waktu, lokasi, dan jawaban formulir pendaftaran.
+  * Kolom Kanan: Rincian tiket, subtotal, total nominal, timeline alur pendaftaran,
+    dan riwayat transaksi pembayaran.
 
-3. DETAIL PENDAFTARAN (/dashboard/registrations/[id])
-Header kode dan status.
-Timeline request, antrean, reservasi, form, transaksi, hasil.
-Data peserta dan jawaban form.
-Kategori tiket dan nominal.
-Order ID, status, expiry, tombol lanjut bayar jika valid.
-Bantuan jika status belum berubah.
+3. TIKET SAYA (/tiket-saya)
+- Ringkasan wallet tiket aktif.
+- Grid kartu e-ticket peserta: judul event, jadwal, kategori, kode tiket unik,
+  badge status tiket, tombol buka e-ticket.
 
-4. ANTREAN (/registration/queue/[id])
-Status queued/processing/accepted/full/failed.
-Nomor antrean hanya jika dihitung akurat.
-Progress dan estimasi hanya jika berdasarkan metrik nyata.
-Ringkasan event.
-Jika accepted: lanjut formulir. Jika full: kembali ke katalog. Jika queued:
-jangan membuat request baru.
+4. DETAIL E-TICKET (/tiket-saya/[id])
+- Kartu e-ticket resmi siap cetak/scan.
+- QR Code dinamis berbasis SVG dari kode tiket.
+- Data pemegang tiket, nama event, lokasi, waktu, dan nomor registrasi.
+- Tombol cetak / unduh tiket.
 
-5. FORM PENDAFTARAN (/registration/[id]/form)
-Stepper antrean -> data -> pembayaran -> selesai.
-Ringkasan event/tiket.
-Form identitas dan field dinamis.
-Review jawaban.
-Persetujuan ketentuan.
-Submit dengan loading dan double-submit protection.
-Form terkait registration yang telah sah.
+5. PROFIL & KEAMANAN (/profil, /profil/security)
+- /profil: Kelola identitas peserta (nama lengkap, nomor telepon, email, avatar).
+- /profil/security: Kelola keamanan akun, ganti password, dan proteksi sesi.
 
-6. PEMBAYARAN (/registration/[id]/payment)
-Ringkasan event, kategori, jumlah, harga, total.
-Status pending, order ID, deadline.
-Tombol membuka Snap/redirect Midtrans.
-Tidak ada upload bukti transfer.
-Jika halaman pembayaran ditutup, peserta dapat kembali ke detail dan lanjut
-selama transaksi masih berlaku.
+6. NOTIFIKASI (/notifikasi)
+- Daftar pemberitahuan real-time: konfirmasi antrean, pengingat pembayaran,
+  tiket terbit, dan pengumuman event. Tandai terbaca individual/semua.
+
+7. ALUR TRANSAKSI AKTIF:
+- Antrean (/registration/queue/[id]): Polling status antrean real-time.
+- Formulir (/registration/[id]/form): Input field dinamis dengan double-submit protection.
+  Jika waktu habis, muncul status box kedaluwarsa dengan tombol "Daftar Ulang".
+- Pembayaran (/registration/[id]/payment): Rincian pembayaran Midtrans Snap.
+  Jika waktu habis, muncul card waktu berakhir dengan tombol "Daftar Ulang" dan "Cek Status".
+- Status Pendaftaran (/registration/[id]/status): Timeline visual, badge status,
+  tombol "Lihat Tiket", "Daftar Ulang" (jika expired), dan "Detail Pendaftaran".
 
 7. STATUS (/registration/[id]/status)
 Tampilkan status dari database.

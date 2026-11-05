@@ -1,0 +1,63 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import StateBox from '../../components/StateBox.astro';
+import Pagination from '../../components/Pagination.astro';
+import { fmtDate } from '../../lib/utils/format';
+
+const page = Math.max(1, Number(Astro.url.searchParams.get('page') ?? 1) || 1);
+const size = 15;
+const { data, count } = await Astro.locals.supabase
+  .from('notifications')
+  .select('*', { count: 'exact' })
+  .order('created_at', { ascending: false })
+  .range((page - 1) * size, page * size - 1);
+---
+<PublicLayout title="Notifikasi">
+  <div class="wrap" style="padding: 32px 0 64px; max-width: 800px;">
+    <div style="margin-bottom: 28px;">
+      <h1 style="font-size: clamp(1.8rem, 3.5vw, 2.4rem); margin-bottom: 6px;">Notifikasi</h1>
+      <p class="lead" style="margin: 0; font-size: 1rem;">Pembaruan status antrean pendaftaran, pembayaran, dan tiket event Anda.</p>
+    </div>
+
+    <div class="stack" style="gap: 12px;">
+      {data?.length ? (
+        data.map((n) => (
+          <article class="card card--pad" data-id={n.id} style={n.read_at ? 'opacity:0.85;' : 'border-left: 4px solid var(--dp-color-accent);'}>
+            <div class="row between" style="margin-bottom: 6px;">
+              <b style="font-size: 1.05rem;">{n.title}</b>
+              {!n.read_at && <span class="badge badge--ok">Baru</span>}
+            </div>
+            <p style="margin: 0 0 10px; color: var(--dp-color-ink-secondary); line-height: 1.5;">{n.body}</p>
+            <div class="row between" style="align-items: center;">
+              <span class="meta" style="font-size: 0.8rem;">{fmtDate(n.created_at, true)}</span>
+              {!n.read_at && (
+                <button class="btn btn--secondary btn--sm" data-read={n.id} type="button">
+                  Tandai sudah dibaca
+                </button>
+              )}
+            </div>
+          </article>
+        ))
+      ) : (
+        <StateBox title="Belum ada notifikasi" text="Pemberitahuan tiket, pembayaran, dan informasi event akan muncul di sini." />
+      )}
+    </div>
+
+    <Pagination page={page} total={count ?? 0} pageSize={size} />
+  </div>
+
+  <script>
+    document.querySelectorAll<HTMLButtonElement>('[data-read]').forEach((b) =>
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        const r = await fetch(`/api/v1/me/notifications/${b.dataset.read}/read`, { method: 'PATCH' });
+        if (r.ok) {
+          b.closest('article')?.querySelector('.badge')?.remove();
+          b.remove();
+        } else {
+          b.disabled = false;
+        }
+      })
+    );
+  </script>
+</PublicLayout>

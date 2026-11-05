@@ -19,9 +19,12 @@ multi-event-platform/
         pages/
           events/
           blog/
-          dashboard/
-          registration/
-          admin/
+          pesanan/          # Portal Pesanan & Transaksi
+          tiket-saya/       # Portal Wallet E-Ticket
+          profil/           # Profil & Keamanan Akun
+          notifikasi/       # Notifikasi Peserta
+          registration/     # Alur Transaksi Aktif (queue, form, payment, status)
+          admin/            # Admin Panel (/admin/dashboard/*)
         lib/
           supabase/
           services/

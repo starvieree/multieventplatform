@@ -11,6 +11,7 @@ export const fail = (status: number, code: string, message: string, requestId: s
 // Kode error dari fungsi SQL -> status HTTP kontrak API.
 const DB_ERRORS: Record<string, [number, string]> = {
   IDEMPOTENCY_CONFLICT: [409, 'Kunci idempotensi sudah dipakai dengan data berbeda.'], USER_LIMIT: [422, 'Batas pendaftaran per akun tercapai.'],
+  CATEGORY_LIMIT: [422, 'Event ini membatasi 1 kategori tiket per akun. Anda sudah mendaftar di kategori lain.'],
   REGISTRATION_CLOSED: [422, 'Pendaftaran tidak dibuka untuk event ini.'], INVALID_CATEGORY: [422, 'Kategori tiket tidak valid atau belum dijual.'],
   ACCOUNT_SUSPENDED: [403, 'Akun ditangguhkan.'], NOT_FOUND: [404, 'Data tidak ditemukan.'], INVALID_STATE: [409, 'Status saat ini tidak mengizinkan tindakan ini.'],
   RESERVATION_EXPIRED: [409, 'Waktu reservasi sudah berakhir. Silakan daftar ulang.'], QUOTA_BELOW_USED: [422, 'Kuota tidak boleh di bawah jumlah yang sudah direservasi/terkonfirmasi.'],

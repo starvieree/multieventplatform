@@ -1,13 +1,15 @@
-// Tombol "Daftar": request antrean dibuat server-side lewat API; browser hanya mengirim niat + idempotency key.
+// Tombol "Daftar": request antrean dibuat server-side lewat API; browser mengirim niat + idempotency key.
 const form = document.getElementById('register-form') as HTMLFormElement | null;
 const msg = document.getElementById('register-msg');
 if (form && form.dataset.can === '1') {
-  const keyFor = (ticket: string, qty: number) => {          // kunci stabil per (event, tiket, jumlah): klik berulang / reload tidak membuat antrean ganda
-    const k = `reg-key:${form.dataset.event}:${ticket}:${qty}`;
-    let v = sessionStorage.getItem(k);
-    if (!v) { v = crypto.randomUUID(); sessionStorage.setItem(k, v); }
-    return v;
-  };
+  // Bersihkan kunci registrasi lama dari sessionStorage agar tidak mengunci pendaftaran baru bila sesi sebelumnya kadaluarsa
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith('reg-key:')) sessionStorage.removeItem(k);
+    }
+  } catch { }
+
   const show = (t: string) => { if (msg) { msg.hidden = false; msg.textContent = t; } };
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -19,8 +21,11 @@ if (form && form.dataset.can === '1') {
     form.dataset.busy = '1'; if (msg) msg.hidden = true;
     const btn = document.getElementById('register-btn') as HTMLButtonElement; btn.disabled = true; btn.textContent = 'Mengamankan kuota…';
     try {
-      const res = await fetch('/api/v1/registrations/queue', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event_id: form.dataset.event, ticket_category_id: ticket, quantity: qty, idempotency_key: keyFor(ticket, qty) }) });
+      const idempotencyKey = crypto.randomUUID();
+      const res = await fetch('/api/v1/registrations/queue', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event_id: form.dataset.event, ticket_category_id: ticket, quantity: qty, idempotency_key: idempotencyKey })
+      });
       const out = await res.json().catch(() => ({}));
       if (res.status === 401) { location.href = `/login?next=${encodeURIComponent(`/events/${form.dataset.slug}#daftar`)}`; return; }
       if (res.ok) { location.href = `/registration/queue/${out.data.queue_request_id}`; return; }

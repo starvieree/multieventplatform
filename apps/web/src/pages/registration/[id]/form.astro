@@ -16,7 +16,7 @@ const ev = (r as any).event;
 ---
 <PublicLayout title="Formulir pendaftaran" noindex>
   <section class="section"><div class="wrap" style="max-width:760px">
-    {!res ? <StateBox kind="error" title="Waktu reservasi sudah berakhir" text="Kuota Anda sudah dilepas. Silakan daftar ulang bila kuota masih tersedia." href={`/events/${ev.slug}`} action="Kembali ke event" /> : <>
+    {!res ? <StateBox kind="error" title="Waktu reservasi sudah berakhir" text="Kuota Anda sudah dilepas. Silakan daftar ulang bila kuota masih tersedia." href={`/events/${ev.slug}#daftar`} action="Daftar Ulang" /> : <>
     <p class="meta">{ev.title} · {(r as any).ticket.name} × {r.quantity} · {rupiah(r.total_amount)}</p><h1 style="font-size:2.2rem">Lengkapi data pendaftaran</h1>
     <div class="alert" role="timer" style="margin:12px 0">Selesaikan sebelum <b>{fmtDate(res.expires_at, true)}</b>. Sisa waktu: <b id="countdown" data-expires={res.expires_at}>—</b></div>
     <form class="form card card--pad" id="reg-form" data-id={r.id}>

@@ -1,7 +1,32 @@
 ---
-interface Props { user: { email?: string } | null; path: string }
+interface Props { user: { id?: string; email?: string } | null; path: string }
 const { user, path } = Astro.props;
 const cur = (h: string) => (h === '/' ? path === '/' : path === h || path.startsWith(h + '/')) ? 'page' : undefined;
+
+const sb = Astro.locals.supabase;
+let profile: { full_name?: string | null; avatar_path?: string | null } | null = null;
+let pendingCount = 0;
+let unreadCount = 0;
+let recentNotes: any[] = [];
+const roles: string[] = Astro.locals.roles ?? [];
+const isAdmin = roles.includes('admin') || roles.includes('super_admin');
+
+if (user && user.id) {
+  const [{ data: p }, { count: pending }, { count: unread, data: notes }] = await Promise.all([
+    sb.from('profiles').select('full_name, avatar_path').eq('id', user.id).maybeSingle(),
+    sb.from('registrations').select('id', { count: 'exact', head: true }).in('registration_status', ['draft', 'awaiting_payment']),
+    sb.from('notifications').select('id, title, body, created_at, read_at', { count: 'exact' }).is('read_at', null).order('created_at', { ascending: false }).limit(4),
+  ]);
+  profile = p;
+  pendingCount = pending ?? 0;
+  unreadCount = unread ?? 0;
+  recentNotes = notes ?? [];
+}
+
+const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
+const initials = (profile?.full_name
+  ? profile.full_name.split(' ').map((n) => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()
+  : displayName.slice(0, 2).toUpperCase()) || 'U';
 ---
 <header class="nav" id="nav" data-open="false">
   <div class="wrap nav__in">
@@ -19,10 +44,138 @@ const cur = (h: string) => (h === '/' ? path === '/' : path === h || path.starts
       <li><a href="/partnership" aria-current={cur('/partnership')}>Partnership</a></li>
       <li><a href="/blog" aria-current={cur('/blog')}>Blog</a></li>
       <li><a href="/kontak" aria-current={cur('/kontak')}>Kontak</a></li>
+
+      {user && (
+        <li class="nav__mobile-only" style="border-top:1px solid var(--dp-color-rule);padding-top:12px;margin-top:8px">
+          <div class="nav__mobile-user">
+            <div class="nav__avatar">{initials}</div>
+            <div><b>{displayName}</b><div class="meta">{user.email}</div></div>
+          </div>
+          <ul style="list-style:none;padding:10px 0 0;margin:0;display:grid;gap:4px">
+            <li><a href="/tiket-saya">🎟️ Tiket Saya</a></li>
+            <li><a href="/pesanan">📦 Pesanan & Transaksi {pendingCount > 0 && <span class="badge badge--warn badge--sm">({pendingCount})</span>}</a></li>
+            <li><a href="/notifikasi">🔔 Notifikasi {unreadCount > 0 && <span class="badge badge--ok badge--sm">({unreadCount})</span>}</a></li>
+            <li><a href="/profil">👤 Pengaturan Akun</a></li>
+            {isAdmin && <li><a href="/admin/dashboard" style="color:var(--dp-color-accent);font-weight:600">⚡ Panel Admin</a></li>}
+            <li style="margin-top:8px">
+              <form method="post" action="/api/auth/signout">
+                <button class="btn btn--secondary btn--sm" style="width:100%" type="submit">Keluar</button>
+              </form>
+            </li>
+          </ul>
+        </li>
+      )}
     </ul>
     <div class="nav__cta">
-      {user ? <><a class="btn" href="/dashboard">Dashboard</a><form method="post" action="/api/auth/signout"><button class="btn btn--secondary">Keluar</button></form></>
-            : <><a class="btn" href="/register">Daftar</a><a class="btn btn--secondary" href="/login">Masuk</a></>}
+      {user ? (
+        <div class="nav__actions" style="display:flex;flex-direction:row;align-items:center;gap:10px;">
+          <!-- Keranjang / Pesanan Aktif -->
+          <a class="nav__action-btn" href="/pesanan" title="Pesanan & Tiket Tertunda" aria-label="Pesanan Aktif" style="display:inline-flex;align-items:center;justify-content:center;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+              <path d="M3 6h18" />
+              <path d="M16 10a4 4 0 0 1-8 0" />
+            </svg>
+            {pendingCount > 0 && <span class="nav__badge" aria-label={`${pendingCount} pesanan aktif`}>{pendingCount}</span>}
+          </a>
+
+          <!-- Lonceng Notifikasi -->
+          <details class="nav__popover-wrap" style="display:inline-flex;align-items:center;">
+            <summary class="nav__action-btn" title="Notifikasi" aria-label="Notifikasi" style="display:inline-flex;align-items:center;justify-content:center;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+              </svg>
+              {unreadCount > 0 && <span class="nav__badge nav__badge--red" aria-label={`${unreadCount} baru`}>{unreadCount > 9 ? '9+' : unreadCount}</span>}
+            </summary>
+            <div class="nav__popover nav__popover--notes">
+              <div class="nav__popover-head">
+                <span>Notifikasi</span>
+                {unreadCount > 0 && <span class="badge badge--ok" style="font-size:0.75rem">{unreadCount} baru</span>}
+              </div>
+              {recentNotes && recentNotes.length > 0 ? (
+                <div>
+                  {recentNotes.map((n) => (
+                    <a href="/notifikasi" class="nav__popover-note-item">
+                      <b>{n.title}</b>
+                      <p>{n.body}</p>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p class="muted" style="padding:16px;text-align:center;font-size:0.85rem;margin:0">Belum ada notifikasi baru.</p>
+              )}
+              <a href="/notifikasi" class="nav__popover-foot">Lihat semua notifikasi</a>
+            </div>
+          </details>
+
+          <!-- Avatar & Profil Dropdown -->
+          <details class="nav__popover-wrap" style="display:inline-flex;align-items:center;">
+            <summary class="nav__avatar-btn" title="Menu akun" aria-label="Menu akun" style="display:inline-flex;align-items:center;">
+              <div class="nav__avatar">{initials}</div>
+              <svg class="nav__caret" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </summary>
+            <div class="nav__popover">
+              <div class="nav__popover-user-info">
+                <b>{displayName}</b>
+                <span>{user.email}</span>
+              </div>
+              <div class="nav__popover-divider"></div>
+              <a href="/tiket-saya" class="nav__popover-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+                  <path d="M13 5v2" /><path d="M13 17v2" /><path d="M13 11v2" />
+                </svg>
+                Tiket Saya
+              </a>
+              <a href="/pesanan" class="nav__popover-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect width="20" height="14" x="2" y="5" rx="2" />
+                  <line x1="2" x2="22" y1="10" y2="10" />
+                </svg>
+                Pesanan & Transaksi
+                {pendingCount > 0 && <span class="badge badge--warn badge--sm" style="margin-left:auto">{pendingCount}</span>}
+              </a>
+              <a href="/profil" class="nav__popover-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                Pengaturan Akun
+              </a>
+              {isAdmin && (
+                <>
+                  <div class="nav__popover-divider"></div>
+                  <a href="/admin/dashboard" class="nav__popover-item nav__popover-item--admin">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 2v20" /><path d="m17 5-5-3-5 3" /><path d="m17 19-5 3-5-3" /><path d="M2 12h20" />
+                    </svg>
+                    Panel Admin
+                  </a>
+                </>
+              )}
+              <div class="nav__popover-divider"></div>
+              <form method="post" action="/api/auth/signout" style="margin:0">
+                <button class="nav__popover-item nav__popover-item--danger" type="submit">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" x2="9" y1="12" y2="12" />
+                  </svg>
+                  Keluar
+                </button>
+              </form>
+            </div>
+          </details>
+        </div>
+      ) : (
+        <>
+          <a class="btn" href="/register">Daftar</a>
+          <a class="btn btn--secondary" href="/login">Masuk</a>
+        </>
+      )}
     </div>
   </div>
 </header>
