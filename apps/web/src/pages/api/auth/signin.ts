@@ -11,7 +11,10 @@ export const POST: APIRoute = async ({ request, locals, redirect, clientAddress 
   const email = emailSchema.safeParse(f.get('email')), password = String(f.get('password') ?? '');
   if (!email.success || !password || password.length > 72) return back('invalid');
   const { data, error } = await locals.supabase.auth.signInWithPassword({ email: email.data, password });
-  if (error || !data.user) return back('invalid');                       // pesan generik: tidak membocorkan apakah email terdaftar
+  if (error || !data.user) {
+    if (error?.message?.toLowerCase().includes('confirm')) return back('unconfirmed');
+    return back('invalid');                       // pesan generik: tidak membocorkan apakah email terdaftar
+  }
   const { data: prof } = await locals.supabase.from('profiles').select('account_status').eq('id', data.user.id).maybeSingle();
   if (prof?.account_status === 'suspended') { await locals.supabase.auth.signOut(); return back('suspended'); }
   return redirect(next, 303);

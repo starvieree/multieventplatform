@@ -10,7 +10,20 @@ export const POST: APIRoute = async ({ request, locals, redirect, clientAddress,
   if (!email.success || !prof.success || f.get('consent') !== 'on') return back('invalid');
   if (!pw.success) return back('weak');
   if (f.get('password') !== f.get('confirm')) return back('mismatch');
-  const redirectBase = url?.origin || site || 'http://localhost:4321';
-  await locals.supabase.auth.signUp({ email: email.data, password: pw.data, options: { data: { full_name: prof.data.full_name, phone: prof.data.phone }, emailRedirectTo: new URL('/auth/callback', redirectBase).toString() } });
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || url?.host;
+  const proto = request.headers.get('x-forwarded-proto') || (host?.startsWith('localhost') ? 'http' : 'https');
+  const redirectBase = host ? `${proto}://${host}` : (site || 'http://localhost:4321');
+  const { error: signUpErr } = await locals.supabase.auth.signUp({
+    email: email.data,
+    password: pw.data,
+    options: {
+      data: { full_name: prof.data.full_name, phone: prof.data.phone },
+      emailRedirectTo: new URL('/auth/callback', redirectBase).toString(),
+    },
+  });
+  if (signUpErr) {
+    console.error('Supabase signup error:', signUpErr.message);
+    if (signUpErr.status === 429) return back('rate');
+  }
   return redirect('/login?registered=1', 303);                          // respons sama baik email baru maupun sudah ada
 };

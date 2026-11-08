@@ -19,10 +19,11 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   ctx.locals.user = null; ctx.locals.roles = []; ctx.locals.permissions = [];
   ctx.locals.supabase = createSupabase(ctx.request, ctx.cookies);
 
-  // CSRF untuk API JSON: Origin harus sama (webhook Midtrans server-to-server dikecualikan; ia dilindungi signature).
+  // CSRF untuk API mutating: Origin / Referer harus berasal dari host yang sama (webhook Midtrans dikecualikan).
   if (pathname.startsWith('/api/') && MUTATING.has(ctx.request.method) && pathname !== '/api/v1/webhooks/midtrans') {
-    const o = ctx.request.headers.get('origin');
-    if (!o || o !== origin) return json(403, 'forbidden_origin', 'Permintaan ditolak.', ctx.locals.requestId);
+    if (!isAllowedOrigin(ctx.request, ctx.url)) {
+      return json(403, 'forbidden_origin', 'Permintaan ditolak.', ctx.locals.requestId);
+    }
   }
 
   // Sesi diverifikasi ke Supabase Auth (getUser), bukan dari cookie mentah.
@@ -72,3 +73,32 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
 
 const json = (status: number, code: string, message: string, request_id: string) =>
   new Response(JSON.stringify({ success: false, error: { code, message, details: {} }, request_id }), { status, headers: { 'Content-Type': 'application/json' } });
+
+function isAllowedOrigin(req: Request, url: URL): boolean {
+  const originHeader = req.headers.get('origin');
+  const referer = req.headers.get('referer');
+  const source = originHeader || referer;
+  if (!source) return false;
+
+  try {
+    const sourceUrl = new URL(source);
+    const forwardedHost = req.headers.get('x-forwarded-host');
+    const hostHeader = req.headers.get('host');
+    const expectedHost = (forwardedHost || hostHeader || url.host).split(':')[0].toLowerCase();
+    const sourceHost = sourceUrl.hostname.toLowerCase();
+
+    // Cocok dengan host request (Localhost maupun domain Vercel/Production)
+    if (sourceHost === expectedHost) return true;
+    if (sourceHost === url.hostname.toLowerCase()) return true;
+
+    // Cocok dengan PUBLIC_SITE_URL jika didefinisikan
+    if (import.meta.env.PUBLIC_SITE_URL) {
+      const siteUrl = new URL(import.meta.env.PUBLIC_SITE_URL);
+      if (sourceHost === siteUrl.hostname.toLowerCase()) return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
