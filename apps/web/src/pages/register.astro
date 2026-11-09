@@ -1,13 +1,82 @@
 ---
 import PublicLayout from '../layouts/PublicLayout.astro';
-import FormField from '../components/FormField.astro';
 import Alert from '../components/Alert.astro';
+
 if (Astro.locals.user) return Astro.redirect('/tiket-saya');
-const err = { invalid: 'Periksa kembali nama, email, dan persetujuan Anda.', weak: 'Kata sandi minimal 10 karakter.', mismatch: 'Konfirmasi kata sandi tidak sama.', rate: 'Terlalu banyak percobaan. Coba lagi nanti.' }[Astro.url.searchParams.get('error') ?? ''];
+
+const err = {
+  invalid: 'Periksa kembali data nama, email, dan persetujuan Anda.',
+  weak: 'Kata sandi harus minimal 10 karakter.',
+  mismatch: 'Konfirmasi kata sandi tidak sesuai.',
+  rate: 'Terlalu banyak percobaan pendaftaran. Coba lagi beberapa saat lagi.',
+}[Astro.url.searchParams.get('error') ?? ''];
 ---
-<PublicLayout title="Daftar akun" noindex><section class="auth wrap"><div class="card"><h1 style="font-size:2rem">Buat akun</h1>{err && <Alert tone="bad">{err}</Alert>}
-  <form class="form" method="post" action="/api/auth/signup" style="margin-top:16px">
-    <FormField name="full_name" label="Nama lengkap" required autocomplete="name" /><FormField name="email" type="email" label="Email" required autocomplete="email" /><FormField name="phone" type="tel" label="Telepon" autocomplete="tel" />
-    <FormField name="password" type="password" label="Kata sandi" required autocomplete="new-password" hint="Minimal 10 karakter." /><FormField name="confirm" type="password" label="Ulangi kata sandi" required autocomplete="new-password" />
-    <FormField name="consent" type="checkbox" label="Saya menyetujui Syarat & ketentuan dan Kebijakan privasi." required /><button class="btn" type="submit">Buat akun</button></form>
-  <p class="small" style="margin:16px 0 0">Sudah punya akun? <a href="/login">Masuk</a></p></div></section></PublicLayout>
+
+<PublicLayout title="Daftar Akun Baru" noindex>
+  <section class="wrap" style="max-width: 520px; padding: 48px 0 80px;">
+    <div class="card" style="padding: 36px 32px; border-radius: 24px; box-shadow: 0 16px 36px -12px rgba(15, 23, 42, 0.1);">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span class="logo" style="justify-content: center; margin-bottom: 12px;">
+          <svg viewBox="0 0 32 32" aria-hidden="true" width="32" height="32">
+            <rect width="32" height="32" rx="8" fill="#2563eb" />
+            <path d="M9 11h14M9 16h14M9 21h8" stroke="#fff" stroke-width="2.4" stroke-linecap="round" />
+          </svg>
+          PlatformEvent<span class="brand-dot">.</span>
+        </span>
+        <h1 style="font-size: 1.6rem; font-weight: 750; margin: 4px 0 6px;">Buat Akun Baru</h1>
+        <p class="muted small" style="margin: 0;">Daftar gratis untuk mulai mengamankan tiket dan antrean event.</p>
+      </div>
+
+      {err && (
+        <div style="margin-bottom: 18px;">
+          <Alert tone="bad">{err}</Alert>
+        </div>
+      )}
+
+      <form class="form" method="post" action="/api/auth/signup">
+        <div class="field">
+          <label for="reg-name">Nama Lengkap</label>
+          <input class="input" id="reg-name" name="full_name" placeholder="Nama sesuai identitas" required autocomplete="name" />
+        </div>
+
+        <div class="field">
+          <label for="reg-email">Alamat Email</label>
+          <input class="input" id="reg-email" name="email" type="email" placeholder="nama@email.com" required autocomplete="email" />
+        </div>
+
+        <div class="field">
+          <label for="reg-phone">Nomor Telepon / WhatsApp <span class="muted small">(opsional)</span></label>
+          <input class="input" id="reg-phone" name="phone" type="tel" placeholder="08xxxxxxxxxx" autocomplete="tel" />
+        </div>
+
+        <div class="field">
+          <label for="reg-password">Kata Sandi</label>
+          <input class="input" id="reg-password" name="password" type="password" placeholder="Minimal 10 karakter" required autocomplete="new-password" />
+          <span class="hint">Gunakan kombinasi huruf dan angka minimal 10 karakter.</span>
+        </div>
+
+        <div class="field">
+          <label for="reg-confirm">Konfirmasi Kata Sandi</label>
+          <input class="input" id="reg-confirm" name="confirm" type="password" placeholder="Ulangi kata sandi Anda" required autocomplete="new-password" />
+        </div>
+
+        <div class="check" style="margin-top: 6px;">
+          <input type="checkbox" id="reg-consent" name="consent" required />
+          <label for="reg-consent" style="font-size: 13px; color: var(--dp-color-ink-secondary); line-height: 1.45;">
+            Saya telah membaca dan menyetujui <a href="/terms" target="_blank">Syarat & Ketentuan</a> serta <a href="/privacy" target="_blank">Kebijakan Privasi</a> PlatformEvent.
+          </label>
+        </div>
+
+        <button class="btn" style="width: 100%; margin-top: 12px; font-size: 15px; padding: 12px;" type="submit">
+          Daftar Akun Sekarang →
+        </button>
+      </form>
+
+      <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--dp-color-rule); text-align: center;">
+        <p class="small muted" style="margin: 0;">
+          Sudah memiliki akun? <a href="/login" style="font-weight: 600;">Masuk di sini</a>
+        </p>
+      </div>
+    </div>
+  </section>
+</PublicLayout>

@@ -4,27 +4,153 @@ import Breadcrumb from '../../components/Breadcrumb.astro';
 import Pagination from '../../components/Pagination.astro';
 import StateBox from '../../components/StateBox.astro';
 import { fmtDate, mediaUrl } from '../../lib/utils/format';
+
 const sb = Astro.locals.supabase, sp = Astro.url.searchParams;
-const q = (sp.get('q') ?? '').replace(/[,()%*\\]/g, ' ').trim().slice(0, 80), cat = (sp.get('category') ?? '').slice(0, 60);
+const q = (sp.get('q') ?? '').replace(/[,()%*\\]/g, ' ').trim().slice(0, 80);
+const cat = (sp.get('category') ?? '').slice(0, 60);
 const page = Math.max(1, Number(sp.get('page') ?? 1) || 1), size = 9;
+
 let query = sb.from('blogs').select('title,slug,excerpt,thumbnail_path,published_at,category', { count: 'exact' }).eq('status', 'published');
-if (q) query = query.or(`title.ilike.%${q}%,excerpt.ilike.%${q}%`); if (cat) query = query.eq('category', cat);
+if (q) query = query.or(`title.ilike.%${q}%,excerpt.ilike.%${q}%`);
+if (cat) query = query.eq('category', cat);
+
 const { data, count, error } = await query.order('published_at', { ascending: false }).range((page - 1) * size, page * size - 1);
 const { data: allCats } = await sb.from('blogs').select('category').eq('status', 'published').not('category', 'is', null);
-const cats = [...new Set((allCats ?? []).map((c) => c.category as string))];
-const [lead, ...rest] = page === 1 && !q && !cat ? data ?? [] : [undefined, ...(data ?? [])];
+const cats: string[] = [...new Set((allCats ?? []).map((c: any) => c.category as string))].filter(Boolean);
+
+const isFirstPageAll = page === 1 && !q && !cat;
+const lead = isFirstPageAll ? data?.[0] : undefined;
+const rest = isFirstPageAll ? (data?.slice(1) ?? []) : (data ?? []);
 ---
-<PublicLayout title="Blog" description="Artikel dan panduan seputar penyelenggaraan dan pendaftaran event.">
-  <section class="section--tight"><div class="wrap"><Breadcrumb items={[{ label: 'Beranda', href: '/' }, { label: 'Blog' }]} /><h1 style="margin-top:20px">Blog</h1></div></section>
-  <section class="section" style="padding-top:8px"><div class="wrap">
-    <form class="row" method="get" role="search" style="margin-bottom:24px"><div class="field" style="flex:1;min-width:220px"><label class="sr-only" for="bq">Cari artikel</label><input class="input" id="bq" name="q" value={q} placeholder="Cari artikel" /></div>
-      <div class="field"><label class="sr-only" for="bc">Kategori</label><select class="input" id="bc" name="category"><option value="">Semua kategori</option>{cats.map((c) => <option selected={c === cat}>{c}</option>)}</select></div><button class="btn">Cari</button></form>
-    {error ? <StateBox kind="error" title="Artikel belum dapat dimuat" href="/blog" action="Muat ulang" /> : !data?.length ? <StateBox title="Belum ada artikel" text="Coba kata kunci atau kategori lain." href="/blog" action="Reset" /> : <>
-      {lead && <article class="card" style="display:grid;grid-template-columns:1fr 1fr;margin-bottom:24px" id="lead">{mediaUrl(lead.thumbnail_path) ? <img src={mediaUrl(lead.thumbnail_path)!} alt="" style="width:100%;height:100%;object-fit:cover;filter:grayscale(1)" width="640" height="360" /> : <div class="event-card__ph">{lead.title[0]}</div>}
-        <div class="card__body" style="padding:32px"><span class="meta">{lead.category} · {fmtDate(lead.published_at)}</span><h2 style="margin-top:8px"><a style="color:inherit;text-decoration:none" href={`/blog/${lead.slug}`}>{lead.title}</a></h2><p class="muted">{lead.excerpt}</p><a class="btn btn--secondary btn--sm" href={`/blog/${lead.slug}`}>Baca artikel</a></div></article>}
-      <div class="grid grid--3">{rest.map((p) => <article class="card event-card">{mediaUrl(p.thumbnail_path) ? <img class="event-card__img" src={mediaUrl(p.thumbnail_path)!} alt="" width="640" height="360" loading="lazy" /> : <div class="event-card__ph">{p.title[0]}</div>}
-        <div class="event-card__body"><span class="meta">{p.category} · {fmtDate(p.published_at)}</span><h3><a href={`/blog/${p.slug}`}>{p.title}</a></h3><p class="muted small" style="margin:0">{p.excerpt}</p></div></article>)}</div>
-      <Pagination page={page} total={count ?? 0} pageSize={size} /></>}
-  </div></section>
-  <style>@media (max-width: 760px) { #lead { grid-template-columns: 1fr !important; } }</style>
+
+<PublicLayout title="Blog & Wawasan Event — PlatformEvent" description="Artikel, panduan penyelenggaraan event, dan sorotan pembicara inspiratif.">
+  <section class="section--tight" style="padding-bottom: 0;">
+    <div class="wrap">
+      <Breadcrumb items={[{ label: 'Beranda', href: '/' }, { label: 'Blog & Cerita' }]} />
+      <div style="margin-top: 18px; margin-bottom: 12px;">
+        <span class="hero__badge" style="margin-bottom: 8px; font-size: 11px;">
+          Kabar & Wawasan
+        </span>
+        <h1 style="font-size: clamp(1.8rem, 3.5vw, 2.4rem); margin: 0 0 6px;">Blog & Cerita Event</h1>
+        <p class="lead" style="margin: 0; font-size: 1rem;">
+          Panduan praktis untuk peserta, tips penyelenggara, dan wawasan terkini seputar industri event di Indonesia.
+        </p>
+      </div>
+
+      <div class="chips-bar" style="margin-top: 14px; padding-bottom: 16px;" role="navigation" aria-label="Filter Kategori Blog">
+        <div class="chips-bar__item">
+          <a class={`chips-pill ${!cat ? 'is-active' : ''}`} href="/blog">
+            🔥 Semua Artikel
+          </a>
+        </div>
+        {cats.map((c) => (
+          <div class="chips-bar__item">
+            <a class={`chips-pill ${cat === c ? 'is-active' : ''}`} href={`/blog?category=${encodeURIComponent(c)}`}>
+              {c}
+            </a>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top: 12px;">
+    <div class="wrap">
+      <form class="hero__quick-finder" method="get" role="search" style="margin-bottom: 32px; max-width: 600px;">
+        <div class="hero__finder-input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <label class="sr-only" for="bq">Cari Artikel</label>
+          <input id="bq" name="q" value={q} placeholder="Cari topik atau judul artikel..." />
+        </div>
+        <button class="btn" type="submit">Cari</button>
+      </form>
+
+      {error ? (
+        <StateBox kind="error" title="Artikel belum dapat dimuat" href="/blog" action="Muat ulang" />
+      ) : !data?.length ? (
+        <StateBox title="Belum Ada Artikel yang Cocok" text="Coba ubah kata kunci atau pilih kategori lain." href="/blog" action="Reset Pencarian" />
+      ) : (
+        <>
+          {lead && (
+            <article class="hero-showcase" style="display: grid; grid-template-columns: 1.2fr 1fr; margin-bottom: 36px; border-radius: 24px; text-decoration: none;" id="lead">
+              <div class="hero-showcase__img-wrap" style="aspect-ratio: auto; min-height: 280px;">
+                {mediaUrl(lead.thumbnail_path) ? (
+                  <img src={mediaUrl(lead.thumbnail_path)!} alt={`Thumbnail ${lead.title}`} class="hero-showcase__img" width="640" height="360" />
+                ) : (
+                  <div class="event-card__ph">{lead.title[0]}</div>
+                )}
+                {lead.category && (
+                  <span class="hero-showcase__badge">{lead.category}</span>
+                )}
+              </div>
+              <div class="hero-showcase__body" style="padding: 36px 32px; justify-content: center;">
+                <span class="hero-showcase__date">
+                  📅 {fmtDate(lead.published_at)}
+                </span>
+                <h2 style="font-size: clamp(1.35rem, 2.5vw, 1.8rem); font-weight: 750; margin: 0; line-height: 1.3;">
+                  <a style="color: inherit; text-decoration: none;" href={`/blog/${lead.slug}`}>
+                    {lead.title}
+                  </a>
+                </h2>
+                <p class="muted small" style="line-height: 1.6; margin: 0;">
+                  {lead.excerpt}
+                </p>
+                <div style="margin-top: 12px;">
+                  <a class="btn btn--secondary btn--sm" href={`/blog/${lead.slug}`}>
+                    Baca Selengkapnya →
+                  </a>
+                </div>
+              </div>
+            </article>
+          )}
+
+          <div class="grid grid--3">
+            {rest.map((p) => (
+              <article class="card event-card">
+                <div class="event-card__img-wrap">
+                  {mediaUrl(p.thumbnail_path) ? (
+                    <img class="event-card__img" src={mediaUrl(p.thumbnail_path)!} alt="" width="640" height="360" loading="lazy" />
+                  ) : (
+                    <div class="event-card__ph">{p.title[0]}</div>
+                  )}
+                  {p.category && (
+                    <span class="event-card__badge-tag">{p.category}</span>
+                  )}
+                </div>
+                <div class="event-card__body">
+                  <div class="event-card__meta-row">
+                    <span>📅 {fmtDate(p.published_at)}</span>
+                  </div>
+                  <h3>
+                    <a href={`/blog/${p.slug}`}>{p.title}</a>
+                  </h3>
+                  <p class="muted small" style="margin: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                    {p.excerpt}
+                  </p>
+                  <div class="event-card__foot">
+                    <a class="btn btn--secondary btn--sm" href={`/blog/${p.slug}`}>
+                      Baca Artikel →
+                    </a>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <Pagination page={page} total={count ?? 0} pageSize={size} />
+        </>
+      )}
+    </div>
+  </section>
+
+  <style>
+    @media (max-width: 860px) {
+      #lead {
+        grid-template-columns: 1fr !important;
+      }
+    }
+  </style>
 </PublicLayout>

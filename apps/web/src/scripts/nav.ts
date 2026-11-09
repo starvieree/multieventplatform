@@ -1,25 +1,48 @@
 // Toggle navbar publik & sidebar panel (mobile). Atribut ARIA diperbarui agar tetap dapat diakses keyboard.
 const nav = document.getElementById('nav');
 const navBtn = document.getElementById('nav-toggle');
-navBtn?.addEventListener('click', () => {
+
+const closeMobileNav = () => {
+  if (nav?.getAttribute('data-open') === 'true') {
+    nav.setAttribute('data-open', 'false');
+    navBtn?.setAttribute('aria-expanded', 'false');
+  }
+};
+
+navBtn?.addEventListener('click', (e) => {
+  e.stopPropagation();
   const open = nav?.getAttribute('data-open') !== 'true';
-  nav?.setAttribute('data-open', String(open)); navBtn.setAttribute('aria-expanded', String(open));
+  nav?.setAttribute('data-open', String(open));
+  navBtn.setAttribute('aria-expanded', String(open));
 });
+
+// Tutup menu mobile ketika link di dalam drawer diklik
+document.querySelectorAll('#nav-links a').forEach((link) => {
+  link.addEventListener('click', () => {
+    if (window.innerWidth <= 900) {
+      closeMobileNav();
+    }
+  });
+});
+
 const panel = document.getElementById('panel');
 const pBtn = document.getElementById('panel-toggle');
 pBtn?.addEventListener('click', () => {
   const open = panel?.getAttribute('data-open') !== 'true';
-  panel?.setAttribute('data-open', String(open)); pBtn.setAttribute('aria-expanded', String(open));
+  panel?.setAttribute('data-open', String(open));
+  pBtn.setAttribute('aria-expanded', String(open));
 });
+
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
-  panel?.setAttribute('data-open', 'false'); nav?.setAttribute('data-open', 'false');
-  navBtn?.setAttribute('aria-expanded', 'false'); pBtn?.setAttribute('aria-expanded', 'false');
+  panel?.setAttribute('data-open', 'false');
+  closeMobileNav();
+  pBtn?.setAttribute('aria-expanded', 'false');
   document.querySelectorAll('.nav__drop details[open]').forEach((d) => d.removeAttribute('open'));
   document.querySelectorAll('.nav__popover-wrap[open]').forEach((d) => d.removeAttribute('open'));
 });
 
-// Tutup popover ketika klik di luar
+// Tutup popover & mobile nav ketika klik di luar
 document.addEventListener('click', (e) => {
   const target = e.target as HTMLElement;
   if (!target.closest('.nav__popover-wrap')) {
@@ -27,6 +50,9 @@ document.addEventListener('click', (e) => {
   }
   if (!target.closest('.nav__drop')) {
     document.querySelectorAll('.nav__drop details[open]').forEach((d) => d.removeAttribute('open'));
+  }
+  if (!target.closest('#nav')) {
+    closeMobileNav();
   }
 });
 

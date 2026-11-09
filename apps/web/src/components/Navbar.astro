@@ -1,7 +1,7 @@
 ---
 interface Props { user: { id?: string; email?: string } | null; path: string }
 const { user, path } = Astro.props;
-const cur = (h: string) => (h === '/' ? path === '/' : path === h || path.startsWith(h + '/')) ? 'page' : undefined;
+const cur = (h: string): 'page' | undefined => ((h === '/' ? path === '/' : path === h || path.startsWith(h + '/')) ? 'page' : undefined);
 
 const sb = Astro.locals.supabase;
 let profile: { full_name?: string | null; avatar_path?: string | null } | null = null;
@@ -28,49 +28,121 @@ const initials = (profile?.full_name
   ? profile.full_name.split(' ').map((n) => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()
   : displayName.slice(0, 2).toUpperCase()) || 'U';
 ---
+
 <header class="nav" id="nav" data-open="false">
   <div class="wrap nav__in">
-    <a class="logo" href="/"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#074ce0"/><path d="M9 11h14M9 16h14M9 21h8" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>Platform Event</a>
-    <button class="nav__toggle" type="button" id="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Toggle navigasi">
-      <span class="nav__toggle-bar"></span>
-      <span class="nav__toggle-bar"></span>
-      <span class="nav__toggle-bar"></span>
-    </button>
-    <ul class="nav__links" id="nav-links">
-      <li><a href="/" aria-current={cur('/')}>Beranda</a></li>
-      <li><a href="/tentang" aria-current={cur('/tentang')}>Tentang</a></li>
-      <li class="nav__drop"><details><summary>Event</summary>
-        <ul class="nav__menu"><li><a href="/events">Semua</a></li><li><a href="/events?status=published">Mendatang</a></li><li><a href="/events?price_type=free">Gratis</a></li><li><a href="/events?price_type=paid">Berbayar</a></li></ul></details></li>
-      <li><a href="/partnership" aria-current={cur('/partnership')}>Partnership</a></li>
-      <li><a href="/blog" aria-current={cur('/blog')}>Blog</a></li>
-      <li><a href="/kontak" aria-current={cur('/kontak')}>Kontak</a></li>
+    <!-- 1. Brand Logo (Kiri) -->
+    <a class="logo" href="/" aria-label="PlatformEvent, beranda">
+      <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true">
+        <rect width="32" height="32" rx="10" fill="#2563eb"/>
+        <path d="M9 11h14M9 16h14M9 21h8" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <span>PlatformEvent<span class="brand-dot">.</span></span>
+    </a>
 
-      {user && (
-        <li class="nav__mobile-only" style="border-top:1px solid var(--dp-color-rule);padding-top:12px;margin-top:8px">
-          <div class="nav__mobile-user">
-            <div class="nav__avatar">{initials}</div>
-            <div><b>{displayName}</b><div class="meta">{user.email}</div></div>
-          </div>
-          <ul style="list-style:none;padding:10px 0 0;margin:0;display:grid;gap:4px">
-            <li><a href="/tiket-saya">🎟️ Tiket Saya</a></li>
-            <li><a href="/pesanan">📦 Pesanan & Transaksi {pendingCount > 0 && <span class="badge badge--warn badge--sm">({pendingCount})</span>}</a></li>
-            <li><a href="/notifikasi">🔔 Notifikasi {unreadCount > 0 && <span class="badge badge--ok badge--sm">({unreadCount})</span>}</a></li>
-            <li><a href="/profil">👤 Pengaturan Akun</a></li>
-            {isAdmin && <li><a href="/admin/dashboard" style="color:var(--dp-color-accent);font-weight:600">⚡ Panel Admin</a></li>}
-            <li style="margin-top:8px">
-              <form method="post" action="/api/auth/signout">
-                <button class="btn btn--secondary btn--sm" style="width:100%" type="submit">Keluar</button>
-              </form>
-            </li>
-          </ul>
+    <!-- 2. Navigasi Desktop & Mobile Drawer (Tengah) -->
+    <div class="nav__links" id="nav-links">
+      <!-- Daftar Link Menu Utama (Teks asli, di bagian atas, rata kiri pada mobile) -->
+      <ul class="nav__menu-list">
+        <li><a href="/" aria-current={cur('/')}>Beranda</a></li>
+        <li><a href="/tentang" aria-current={cur('/tentang')}>Tentang</a></li>
+        <li class="nav__drop">
+          <details>
+            <summary>Event</summary>
+            <ul class="nav__menu">
+              <li><a href="/events">Semua</a></li>
+              <li><a href="/events?status=published">Mendatang</a></li>
+              <li><a href="/events?price_type=free">Gratis</a></li>
+              <li><a href="/events?price_type=paid">Berbayar</a></li>
+            </ul>
+          </details>
         </li>
-      )}
-    </ul>
-    <div class="nav__cta">
+        <li><a href="/partnership" aria-current={cur('/partnership')}>Partnership</a></li>
+        <li><a href="/blog" aria-current={cur('/blog')}>Blog</a></li>
+        <li><a href="/kontak" aria-current={cur('/kontak')}>Kontak</a></li>
+      </ul>
+
+      <!-- Bagian Bawah Mobile: Profil & Terakhir Logout -->
+      <div class="nav__mobile-bottom mobile-only">
+        {user ? (
+          <div class="nav__mobile-user-section">
+            <!-- Profil Ringkas -->
+            <div class="nav__mobile-user-card">
+              <div class="nav__avatar">{initials}</div>
+              <div class="nav__mobile-user-meta">
+                <b>{displayName}</b>
+                <span>{user.email}</span>
+              </div>
+            </div>
+
+            <!-- Tautan Akun Pengguna (Rata Kiri) -->
+            <div class="nav__mobile-user-links">
+              <a href="/tiket-saya" class="nav__mobile-user-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+                  <path d="M13 5v2" /><path d="M13 17v2" /><path d="M13 11v2" />
+                </svg>
+                <span>Tiket Saya</span>
+              </a>
+              <a href="/pesanan" class="nav__mobile-user-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect width="20" height="14" x="2" y="5" rx="2" />
+                  <line x1="2" x2="22" y1="10" y2="10" />
+                </svg>
+                <span>Pesanan & Transaksi</span>
+                {pendingCount > 0 && <span class="badge badge--warn badge--sm">{pendingCount}</span>}
+              </a>
+              <a href="/notifikasi" class="nav__mobile-user-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                  <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                </svg>
+                <span>Notifikasi</span>
+                {unreadCount > 0 && <span class="badge badge--ok badge--sm">{unreadCount}</span>}
+              </a>
+              <a href="/profil" class="nav__mobile-user-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span>Pengaturan Akun</span>
+              </a>
+              {isAdmin && (
+                <a href="/admin/dashboard" class="nav__mobile-user-item nav__mobile-user-item--admin">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 2v20" /><path d="m17 5-5-3-5 3" /><path d="m17 19-5 3-5-3" /><path d="M2 12h20" />
+                  </svg>
+                  <span>Panel Admin</span>
+                </a>
+              )}
+            </div>
+
+            <!-- Terakhir: Logout -->
+            <form method="post" action="/api/auth/signout" class="nav__mobile-logout-form">
+              <button class="btn btn--secondary btn--danger-subtle btn--logout" type="submit">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" x2="9" y1="12" y2="12" />
+                </svg>
+                <span>Keluar</span>
+              </button>
+            </form>
+          </div>
+        ) : (
+          <div class="nav__mobile-auth-section">
+            <a class="btn" href="/register">Daftar</a>
+            <a class="btn btn--secondary" href="/login">Masuk</a>
+          </div>
+        )}
+      </div>
+    </div>
+
+    <!-- 3. Desktop Actions / Mobile Top Controls (Kanan) -->
+    <div class="nav__top-controls">
       {user ? (
-        <div class="nav__actions" style="display:flex;flex-direction:row;align-items:center;gap:10px;">
-          <!-- Keranjang / Pesanan Aktif -->
-          <a class="nav__action-btn" href="/pesanan" title="Pesanan & Tiket Tertunda" aria-label="Pesanan Aktif" style="display:inline-flex;align-items:center;justify-content:center;">
+        <div class="nav__actions desktop-only">
+          <a class="nav__action-btn" href="/pesanan" title="Pesanan & Tiket Tertunda" aria-label="Pesanan Aktif">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
               <path d="M3 6h18" />
@@ -79,9 +151,8 @@ const initials = (profile?.full_name
             {pendingCount > 0 && <span class="nav__badge" aria-label={`${pendingCount} pesanan aktif`}>{pendingCount}</span>}
           </a>
 
-          <!-- Lonceng Notifikasi -->
-          <details class="nav__popover-wrap" style="display:inline-flex;align-items:center;">
-            <summary class="nav__action-btn" title="Notifikasi" aria-label="Notifikasi" style="display:inline-flex;align-items:center;justify-content:center;">
+          <details class="nav__popover-wrap">
+            <summary class="nav__action-btn" title="Notifikasi" aria-label="Notifikasi">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
                 <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
@@ -109,9 +180,8 @@ const initials = (profile?.full_name
             </div>
           </details>
 
-          <!-- Avatar & Profil Dropdown -->
-          <details class="nav__popover-wrap" style="display:inline-flex;align-items:center;">
-            <summary class="nav__avatar-btn" title="Menu akun" aria-label="Menu akun" style="display:inline-flex;align-items:center;">
+          <details class="nav__popover-wrap">
+            <summary class="nav__avatar-btn" title="Menu akun" aria-label="Menu akun">
               <div class="nav__avatar">{initials}</div>
               <svg class="nav__caret" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
                 <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
@@ -171,11 +241,37 @@ const initials = (profile?.full_name
           </details>
         </div>
       ) : (
-        <>
-          <a class="btn" href="/register">Daftar</a>
+        <div class="nav__cta desktop-only">
           <a class="btn btn--secondary" href="/login">Masuk</a>
-        </>
+          <a class="btn" href="/register">Daftar</a>
+        </div>
       )}
+
+      <!-- Khusus Mobile: Tombol Pesanan Cepat jika Login -->
+      {user && (
+        <a class="nav__action-btn mobile-only" href="/pesanan" title="Pesanan" aria-label="Pesanan Aktif">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+            <path d="M3 6h18" />
+            <path d="M16 10a4 4 0 0 1-8 0" />
+          </svg>
+          {pendingCount > 0 && <span class="nav__badge" aria-label={`${pendingCount} pesanan aktif`}>{pendingCount}</span>}
+        </a>
+      )}
+
+      <!-- Tombol Hamburger Mobile -->
+      <button
+        class="nav__toggle"
+        type="button"
+        id="nav-toggle"
+        aria-expanded="false"
+        aria-controls="nav-links"
+        aria-label="Buka menu navigasi"
+      >
+        <span class="nav__toggle-bar"></span>
+        <span class="nav__toggle-bar"></span>
+        <span class="nav__toggle-bar"></span>
+      </button>
     </div>
   </div>
 </header>

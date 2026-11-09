@@ -1,23 +1,202 @@
 ---
-import PublicLayout from '../layouts/PublicLayout.astro';
-import Breadcrumb from '../components/Breadcrumb.astro';
-import FormField from '../components/FormField.astro';
-import { adminDb } from '../lib/supabase/server';
-const { data } = await adminDb().from('app_settings').select('value').eq('key', 'site').maybeSingle();   // pengaturan situs bukan data sensitif; dibaca server-side
-const site = (data?.value ?? {}) as Record<string, string>;
-const faq = [['Berapa lama pesan dibalas?', 'Pesan ditinjau tim kami lalu dibalas lewat email yang Anda tulis.'], ['Pembayaran saya belum berubah, apa yang harus dilakukan?', 'Buka detail pendaftaran dan pilih "Segarkan status". Bila tetap pending, kirim kode pendaftaran lewat formulir ini.'], ['Bagaimana membatalkan pendaftaran?', 'Ikuti kebijakan pembatalan di halaman Syarat & ketentuan, atau hubungi penyelenggara event.']];
+import PublicLayout from "../layouts/PublicLayout.astro";
+import Breadcrumb from "../components/Breadcrumb.astro";
+import FormField from "../components/FormField.astro";
+import { adminDb } from "../lib/supabase/server";
+
+const { data } = await adminDb()
+  .from("app_settings")
+  .select("value")
+  .eq("key", "site")
+  .maybeSingle();
+const site = ((data as any)?.value ?? {}) as Record<string, string>;
+const faq = [
+  [
+    "Berapa lama pesan saya akan dibalas?",
+    "Setiap pesan ditinjau oleh tim dukungan kami dan dibalas paling lambat dalam 1x24 jam kerja melalui email yang Anda cantumkan.",
+  ],
+  [
+    "Pembayaran saya belum terkonfirmasi, apa yang harus dilakukan?",
+    'Buka detail pendaftaran di menu Pesanan Saya lalu klik tombol "Segarkan Status". Bila status belum berubah setelah 15 menit, kirimkan kode registrasi dan bukti bayar melalui formulir di halaman ini.',
+  ],
+  [
+    "Bagaimana cara membatalkan pendaftaran event?",
+    "Kebijakan pengembalian dana (refund) atau pembatalan bergantung pada masing-masing penyelenggara acara. Silakan merujuk pada halaman Syarat & Ketentuan kami.",
+  ],
+];
 ---
-<PublicLayout title="Kontak" description="Hubungi tim Platform Event untuk bantuan pendaftaran, pembayaran, dan kemitraan.">
-  <section class="hero"><div class="wrap"><Breadcrumb items={[{ label: 'Beranda', href: '/' }, { label: 'Kontak' }]} /><h1 style="margin-top:20px">Ada yang bisa kami bantu?</h1><p class="lead">Tulis pesan Anda. Sertakan kode pendaftaran bila terkait pembayaran atau tiket.</p></div></section>
-  <section class="section" style="padding-top:8px"><div class="wrap grid grid--2" style="align-items:start">
-    <div class="stack"><h2>Kontak resmi</h2><dl class="kv"><dt>Email</dt><dd>{site.email ? <a href={`mailto:${site.email}`}>{site.email}</a> : '—'}</dd><dt>Telepon</dt><dd>{site.phone || '—'}</dd><dt>Alamat</dt><dd>{site.address || '—'}</dd></dl></div>
-    <form class="form card card--pad" data-json-form data-hp data-endpoint="/api/v1/contact-messages" data-success="Pesan terkirim. Terima kasih, kami akan membalas lewat email." data-reset>
-      <FormField name="name" label="Nama" required autocomplete="name" /><FormField name="email" type="email" label="Email" required autocomplete="email" /><FormField name="subject" label="Subjek" required />
-      <FormField name="message" type="textarea" label="Pesan" required rows={6} />
-      <div class="hp" aria-hidden="true"><label>Jangan diisi<input name="hp" tabindex="-1" autocomplete="off" /></label></div>
-      <FormField name="consent" type="checkbox" label="Saya setuju data ini dipakai untuk membalas pesan saya." required />
-      <div data-feedback hidden></div><button class="btn" type="submit">Kirim pesan</button></form></div></section>
-  <section class="section section--muted"><div class="wrap grid grid--2" style="align-items:start"><div><h2>Pertanyaan umum</h2></div><div>{faq.map(([q, a]) => <details class="faq"><summary>{q}</summary><div>{a}</div></details>)}</div></div></section>
-  <section class="section"><div class="wrap"><div class="section-head" style="margin:0"><h2>Ingin menyelenggarakan event?</h2><div class="row"><a class="btn" href="/partnership">Ajukan kemitraan</a></div></div></div></section>
-  <script>import '../scripts/json-form.ts';</script>
+
+<PublicLayout
+  title="Hubungi Kami — Pusat Bantuan"
+  description="Hubungi tim PlatformEvent untuk bantuan kendala pendaftaran, pembayaran tiket, dan kemitraan acara."
+>
+  <section class="hero" style="padding-bottom: 24px;">
+    <div class="wrap">
+      <Breadcrumb
+        items={[{ label: "Beranda", href: "/" }, { label: "Kontak Bantuan" }]}
+      />
+      <div style="margin-top: 18px;">
+        <span class="hero__badge" style="margin-bottom: 8px; font-size: 11px;">
+          Pusat Bantuan & Layanan
+        </span>
+        <h1 style="font-size: clamp(1.8rem, 3.5vw, 2.6rem); margin: 0 0 8px;">
+          Ada yang Bisa Kami Bantu?
+        </h1>
+        <p class="lead" style="margin: 0;">
+          Tim kami siap membantu kendala pendaftaran, status verifikasi tiket,
+          hingga konsultasi kemitraan promotor.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top: 16px;">
+    <div class="wrap grid grid--2" style="gap: 36px; align-items: start;">
+      <div class="stack" style="gap: 20px;">
+        <div
+          class="card"
+          style="padding: 28px; border-radius: 20px; box-shadow: 0 10px 28px -10px rgba(15, 23, 42, 0.08);"
+        >
+          <h2 style="font-size: 1.25rem; margin-bottom: 16px;">Kontak Resmi</h2>
+          <dl class="kv" style="gap: 12px 20px; font-size: 14px;">
+            <dt>Email Dukungan</dt>
+            <dd>
+              {
+                site.email ? (
+                  <a href={`mailto:${site.email}`} style="font-weight: 600;">
+                    {site.email}
+                  </a>
+                ) : (
+                  "support@platformevent.id"
+                )
+              }
+            </dd>
+            <dt>Telepon / WA</dt>
+            <dd>{site.phone || "+62 812-3456-7890"}</dd>
+            <dt>Kantor Pusat</dt>
+            <dd>{site.address || "Jakarta, Indonesia"}</dd>
+            <dt>Jam Operasional</dt>
+            <dd>Senin – Jumat, 09:00 – 18:00 WIB</dd>
+          </dl>
+        </div>
+
+        <div
+          style="background: var(--dp-color-ground-muted); border-radius: 18px; padding: 22px; border: 1px solid var(--dp-color-rule);"
+        >
+          <b style="font-size: 14px; display: block; margin-bottom: 6px;"
+            >💡 Tips Respon Cepat:</b
+          >
+          <p class="meta" style="margin: 0; line-height: 1.5; font-size: 13px;">
+            Untuk kendala pembayaran tiket, mohon cantumkan <b
+              >Kode Booking / Registrasi</b
+            > Anda agar tim teknis kami dapat langsung memeriksa antrean pembayaran
+            Anda.
+          </p>
+        </div>
+      </div>
+
+      <div
+        class="card"
+        style="padding: 32px; border-radius: 20px; box-shadow: 0 14px 32px -12px rgba(15, 23, 42, 0.1);"
+      >
+        <h2 style="font-size: 1.35rem; margin-bottom: 6px;">
+          Kirim Pesan Langsung
+        </h2>
+        <p class="muted small" style="margin-bottom: 20px;">
+          Kami akan membalas pesan Anda sesegera mungkin ke alamat email yang
+          dicantumkan.
+        </p>
+
+        <form
+          class="form"
+          data-json-form
+          data-hp
+          data-endpoint="/api/v1/contact-messages"
+          data-success="Pesan Anda berhasil terkirim. Tim kami akan segera membalas lewat email."
+          data-reset
+        >
+          <FormField
+            name="name"
+            label="Nama Lengkap"
+            required
+            autocomplete="name"
+          />
+          <FormField
+            name="email"
+            type="email"
+            label="Alamat Email"
+            required
+            autocomplete="email"
+          />
+          <FormField
+            name="subject"
+            label="Topik / Kode Registrasi"
+            required
+            placeholder="Contoh: Kendala Pembayaran REG-2026-..."
+          />
+          <FormField
+            name="message"
+            type="textarea"
+            label="Detail Pesan"
+            required
+            rows={5}
+            placeholder="Tuliskan kendala atau pertanyaan Anda secara rinci..."
+          />
+          <div class="hp" aria-hidden="true">
+            <label
+              >Jangan diisi<input
+                name="hp"
+                tabindex="-1"
+                autocomplete="off"
+              /></label
+            >
+          </div>
+          <FormField
+            name="consent"
+            type="checkbox"
+            label="Saya menyetujui penggunaan data di atas untuk keperluan penanganan pesan ini."
+            required
+          />
+          <div data-feedback hidden style="margin-top: 10px;"></div>
+          <button
+            class="btn"
+            style="width: 100%; margin-top: 12px; font-size: 15px; padding: 12px; font-weight: 700;"
+            type="submit"
+          >
+            Kirim Pesan Sekarang →
+          </button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--muted">
+    <div class="wrap grid grid--2" style="gap: 36px; align-items: start;">
+      <div>
+        <span class="hero__badge" style="margin-bottom: 8px; font-size: 11px;"
+          >FAQ</span
+        >
+        <h2 style="font-size: 1.6rem; margin: 0 0 8px;">
+          Pertanyaan yang Sering Diajukan
+        </h2>
+        <p class="lead" style="font-size: 1rem;">
+          Jawaban cepat untuk pertanyaan seputar antrean, tiket, dan transaksi.
+        </p>
+      </div>
+      <div>
+        {
+          faq.map(([q, a]) => (
+            <details class="faq">
+              <summary style="font-size: 15px; font-weight: 650;">{q}</summary>
+              <div style="font-size: 14px; line-height: 1.6;">{a}</div>
+            </details>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <script>
+    import "../scripts/json-form.ts";
+  </script>
 </PublicLayout>

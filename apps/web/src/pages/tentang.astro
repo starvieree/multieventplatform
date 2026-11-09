@@ -1,25 +1,203 @@
 ---
-import PublicLayout from '../layouts/PublicLayout.astro';
-import Breadcrumb from '../components/Breadcrumb.astro';
-const values = [['Kuota akurat', 'Kuota dihitung di database dengan transaksi atomik, sehingga dua orang tidak bisa mengambil kursi terakhir bersamaan.'], ['Pembayaran terverifikasi', 'Status lunas hanya berubah setelah notifikasi penyedia pembayaran lolos validasi.'], ['Transparan', 'Peserta dan admin melihat status yang sama, lengkap dengan riwayat setiap tahap.'], ['Aman by default', 'Data peserta dilindungi hak akses per baris, dan tindakan admin penting tercatat.']];
+import PublicLayout from "../layouts/PublicLayout.astro";
+import Breadcrumb from "../components/Breadcrumb.astro";
+
+const values = [
+  [
+    "Kuota Akurat & Adil",
+    "Kuota tiket dihitung secara atomik langsung di database server. Tidak ada kemungkinan dua peserta merebut satu kursi terakhir.",
+  ],
+  [
+    "Pembayaran Terverifikasi",
+    "Status transaksi diverifikasi otomatis lewat webhook Midtrans terenkripsi, bebas dari risiko manipulasi bukti transfer.",
+  ],
+  [
+    "Alur Transparan",
+    "Peserta dan promotor memiliki visibilitas penuh atas setiap status: antrean, waktu reservasi, pembayaran, hingga tiket terbit.",
+  ],
+  [
+    "Aman Secara Standar",
+    "Data sensitif peserta dilindungi sistem Row-Level Security dan setiap tindakan administratif tercatat dalam audit log.",
+  ],
+];
 ---
-<PublicLayout title="Tentang platform" description="Mengapa platform pendaftaran multi-event ini dibuat dan bagaimana cara kerjanya.">
-  <section class="hero"><div class="wrap"><Breadcrumb items={[{ label: 'Beranda', href: '/' }, { label: 'Tentang' }]} />
-    <h1 style="margin-top:20px;max-width:20ch">Pendaftaran event yang tidak membuat peserta bingung.</h1>
-    <p class="lead">Platform ini mengelola banyak event dalam satu website, dari katalog sampai tiket, dengan antrean dan pembayaran otomatis.</p></div></section>
-  <section class="section section--muted"><div class="wrap grid grid--2">
-    <div><h2>Masalah yang ingin diselesaikan</h2></div>
-    <div class="prose"><p>Alur lama memakai QRIS statis, unggah bukti transfer, dan pemeriksaan manual. Peserta yang keluar saat membayar kehilangan konteks, tidak bisa melanjutkan unggah bukti, dan akhirnya mengulang pendaftaran, bahkan dengan identitas transaksi yang berbeda.</p><p>Penyelenggara juga harus memeriksa bukti satu per satu, dan kuota bisa terlampaui ketika pendaftaran ramai.</p></div>
-  </div></section>
-  <section class="section"><div class="wrap grid grid--2">
-    <div><h2>Profil dan fungsi platform</h2></div>
-    <div class="prose"><p>Platform menyediakan katalog event, pendaftaran lewat antrean, pembayaran Midtrans, manajemen pesanan dan tiket, serta Admin Panel untuk mengelola event, transaksi, antrean, dan laporan.</p><p>Peserta dapat menutup halaman pembayaran lalu melanjutkannya dari menu Pesanan selama transaksi masih berlaku.</p></div>
-  </div></section>
-  <section class="section section--muted"><div class="wrap grid grid--2">
-    <article class="card card--pad"><h2 style="font-size:1.5rem">Visi</h2><p class="muted">Pendaftaran event yang adil, jelas statusnya, dan tidak bergantung pada pemeriksaan manual.</p></article>
-    <article class="card card--pad"><h2 style="font-size:1.5rem">Misi</h2><ul class="muted" style="padding-left:18px;margin:0"><li>Menjaga kuota tetap akurat saat lonjakan pendaftaran.</li><li>Mengotomatisasi konfirmasi pembayaran.</li><li>Memberi penyelenggara data yang bisa diaudit.</li></ul></article>
-  </div></section>
-  <section class="section"><div class="wrap"><div class="section-head"><h2>Nilai yang kami pegang</h2><p></p></div>
-    <div class="grid grid--4">{values.map(([t, d]) => <article class="card card--pad"><h3>{t}</h3><p class="muted small" style="margin:0">{d}</p></article>)}</div></div></section>
-  <section class="section section--muted"><div class="wrap"><div class="section-head" style="margin:0"><h2>Mulai dari katalog, atau ajak kami bekerja sama.</h2><div class="row"><a class="btn" href="/events">Lihat event</a><a class="btn btn--secondary" href="/partnership">Ajukan kemitraan</a></div></div></div></section>
+
+<PublicLayout
+  title="Tentang PlatformEvent"
+  description="Mengenal visi, misi, dan teknologi di balik platform pendaftaran event dengan antrean kuota terverifikasi."
+>
+  <section class="hero" style="padding-bottom: 24px;">
+    <div class="wrap">
+      <Breadcrumb
+        items={[{ label: "Beranda", href: "/" }, { label: "Tentang Platform" }]}
+      />
+      <div style="margin-top: 18px;">
+        <span class="hero__badge" style="margin-bottom: 8px; font-size: 11px;">
+          Misi & Inovasi Kami
+        </span>
+        <h1
+          style="font-size: clamp(1.9rem, 4vw, 2.8rem); margin: 0 0 10px; max-width: 22ch;"
+        >
+          Pengalaman Pendaftaran Event yang Adil & Tenang.
+        </h1>
+        <p class="lead" style="margin: 0; max-width: 62ch;">
+          Platform modern yang menyatukan katalog acara pilihan, antrean tiket
+          kuota real-time, dan konfirmasi pembayaran otomatis tanpa repot cek
+          mutasi manual.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--muted">
+    <div class="wrap grid grid--2" style="gap: 40px; align-items: start;">
+      <div>
+        <span class="hero__badge" style="margin-bottom: 8px; font-size: 11px;"
+          >Latar Belakang</span
+        >
+        <h2 style="font-size: 1.6rem; margin: 0 0 12px;">
+          Masalah yang Kami Selesaikan
+        </h2>
+      </div>
+      <div
+        class="prose"
+        style="font-size: 15px; line-height: 1.7; color: var(--dp-color-ink);"
+      >
+        <p>
+          Banyak penyelenggara event di Indonesia masih mengandalkan Google Form
+          atau alur transfer manual yang rentan: kuota tiket kelebihan kapasitas
+          (oversold), peserta kehilangan bukti transfer saat browser tertutup,
+          dan panitia harus memvalidasi ratusan mutasi bank secara manual hingga
+          larut malam.
+        </p>
+        <p style="margin-bottom: 0;">
+          <b>PlatformEvent</b> hadir sebagai solusi modern: sistem antrean kuota otomatis
+          menjaga kestabilan saat lonjakan trafik, reservasi tiket dikunci selama
+          30 menit, dan konfirmasi pembayaran dari payment gateway langsung menerbitkan
+          barcode e-ticket resmi dalam hitungan detik.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap grid grid--2" style="gap: 28px;">
+      <article
+        class="card"
+        style="padding: 32px; border-radius: 20px; box-shadow: 0 8px 24px -6px rgba(15, 23, 42, 0.06); border: 1px solid var(--dp-color-rule);"
+      >
+        <div class="icon-dot" style="margin-bottom: 14px;">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </div>
+        <h2 style="font-size: 1.4rem; font-weight: 750; margin-bottom: 10px;">
+          Visi Kami
+        </h2>
+        <p class="muted" style="line-height: 1.6; margin: 0;">
+          Menjadi platform ekosistem event paling tepercaya di Indonesia yang
+          menghubungkan pencari acara berkualitas dengan promotor melalui
+          teknologi pendaftaran yang adil, stabil, dan transparan.
+        </p>
+      </article>
+
+      <article
+        class="card"
+        style="padding: 32px; border-radius: 20px; box-shadow: 0 8px 24px -6px rgba(15, 23, 42, 0.06); border: 1px solid var(--dp-color-rule);"
+      >
+        <div class="icon-dot" style="margin-bottom: 14px;">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+        </div>
+        <h2 style="font-size: 1.4rem; font-weight: 750; margin-bottom: 10px;">
+          Misi Kami
+        </h2>
+        <ul
+          class="muted"
+          style="padding-left: 18px; margin: 0; line-height: 1.6; display: flex; flex-direction: column; gap: 6px;"
+        >
+          <li>
+            Mencegah server down dan tiket oversold saat lonjakan pendaftaran
+            peserta.
+          </li>
+          <li>
+            Mengotomatiskan verifikasi pembayaran instan via QRIS, Virtual
+            Account, dan E-Wallet.
+          </li>
+          <li>
+            Menyediakan laporan analitik dan audit log yang akurat bagi para
+            promotor.
+          </li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <section class="section section--muted">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="hero__badge" style="margin-bottom: 8px; font-size: 11px;"
+            >Prinsip Kami</span
+          >
+          <h2 style="font-size: 1.6rem; margin: 0;">Nilai yang Kami Junjung</h2>
+        </div>
+      </div>
+
+      <div class="grid grid--4">
+        {
+          values.map(([t, d]) => (
+            <article
+              class="card"
+              style="padding: 24px; border-radius: 18px; border: 1px solid var(--dp-color-rule); box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.05);"
+            >
+              <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 8px;">
+                {t}
+              </h3>
+              <p class="muted small" style="margin: 0; line-height: 1.55;">
+                {d}
+              </p>
+            </article>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="promoter-banner">
+        <div>
+          <h2>Siap Menemukan atau Menggelar Event?</h2>
+          <p>
+            Mulai jelajahi ribuan tiket seminar dan workshop, atau bergabunglah
+            sebagai mitra penyelenggara resmi bersama kami.
+          </p>
+        </div>
+        <div class="promoter-banner__actions">
+          <a class="btn btn--white" href="/events"> Jelajahi Katalog Event </a>
+          <a class="btn btn--ghost-light" href="/partnership">
+            Ajukan Kemitraan Penyelenggara
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
 </PublicLayout>

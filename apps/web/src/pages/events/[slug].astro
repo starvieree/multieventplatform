@@ -228,62 +228,137 @@ const jsonLd = {
       ]}
     />
   </div>
-  <section class="section" style="padding-top:24px">
+  <section class="section" style="padding-top:20px">
     <div
       class="wrap grid"
-      style="grid-template-columns:1.5fr 1fr;align-items:start"
+      style="grid-template-columns:1.5fr 1fr;gap:36px;align-items:start"
       id="detail-grid"
     >
-      <div class="stack">
+      <div class="stack" style="gap:24px">
         {
           poster && (
-            <img
-              class="card"
-              style="width:100%;aspect-ratio:16/9;object-fit:cover;filter:grayscale(1)"
-              src={poster}
-              alt={ev.poster_alt || `Poster ${ev.title}`}
-              width="960"
-              height="540"
-            />
+            <div
+              class="event-card__img-wrap"
+              style="border-radius:20px;overflow:hidden;box-shadow:0 12px 32px -10px rgba(15,23,42,0.12);aspect-ratio:16/9;"
+            >
+              <img
+                class="event-card__img"
+                style="filter:none;"
+                src={poster}
+                alt={ev.poster_alt || `Poster ${ev.title}`}
+                width="960"
+                height="540"
+              />
+              {ev.category?.name && (
+                <span
+                  class="event-card__badge-tag"
+                  style="font-size:12px;padding:6px 14px;"
+                >
+                  {ev.category.name}
+                </span>
+              )}
+              <span
+                class="event-card__badge-format"
+                style="font-size:12px;padding:6px 14px;"
+              >
+                {ev.event_type === "online"
+                  ? "🟢 Online"
+                  : `📍 ${ev.venue_name || "Offline"}`}
+              </span>
+            </div>
           )
         }
-        <div class="row">
-          <span class="meta">{ev.category?.name ?? "Event"}</span><Badge
-            status={ev.status}
-          />
+
+        <div class="stack" style="gap:12px">
+          <div class="row between">
+            <span
+              class="badge badge--ok"
+              style="font-size:12px;padding:5px 12px;"
+              >{ev.category?.name ?? "Event"}</span
+            >
+            <Badge status={ev.status} />
+          </div>
+
+          <h1
+            style="font-size:clamp(1.9rem,3.8vw,2.8rem);line-height:1.2;margin:0"
+          >
+            {ev.title}
+          </h1>
+          {
+            ev.summary && (
+              <p class="lead" style="font-size:1.1rem;margin:0">
+                {ev.summary}
+              </p>
+            )
+          }
+
+          <div class="chips-bar" style="margin:8px 0 4px;padding:0;gap:8px;">
+            <div class="chips-bar__item">
+              <span class="chips-pill" style="font-size:13px;padding:6px 14px;">
+                📅 {fmtDate(ev.start_at, true)} (WIB)
+              </span>
+            </div>
+            <div class="chips-bar__item">
+              <span class="chips-pill" style="font-size:13px;padding:6px 14px;">
+                {
+                  ev.event_type === "online"
+                    ? "🌐 Webinar Online"
+                    : `📍 ${ev.venue_name || "Venue Acara"}`
+                }
+              </span>
+            </div>
+            <div class="chips-bar__item">
+              <span class="chips-pill" style="font-size:13px;padding:6px 14px;">
+                👥 Tersedia {listing?.available ?? 0} / {ev.total_quota} Kuota
+              </span>
+            </div>
+          </div>
         </div>
-        <h1 style="font-size:clamp(2rem,4vw,3rem)">{ev.title}</h1>
-        {ev.summary && <p class="lead">{ev.summary}</p>}
-        <dl class="kv card card--pad">
-          <dt>Waktu</dt><dd>
-            {fmtDate(ev.start_at, true)} – {fmtDate(ev.end_at, true)} (WIB)
+
+        <dl
+          class="kv card card--pad"
+          style="border-radius:18px;background:var(--dp-color-panel);border:1px solid var(--dp-color-rule);"
+        >
+          <dt>Waktu Pelaksanaan</dt>
+          <dd>
+            <b>{fmtDate(ev.start_at, true)}</b> – {fmtDate(ev.end_at, true)} WIB
           </dd>
-          <dt>Lokasi</dt><dd>
+          <dt>Lokasi Acara</dt>
+          <dd>
             {
               ev.event_type === "online"
-                ? "Online"
+                ? "Diselenggarakan Secara Online"
                 : [ev.venue_name, ev.address].filter(Boolean).join(", ") ||
-                  "Segera diumumkan"
+                  "Segera diumumkan oleh panitia"
             }{
               ev.event_type !== "offline" && ev.online_url && (
                 <>
                   {" "}
                   ·{" "}
-                  <a href={ev.online_url} rel="noopener noreferrer">
-                    Tautan acara
+                  <a
+                    href={ev.online_url}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                    style="font-weight:600"
+                  >
+                    Buka tautan acara ↗
                   </a>
                 </>
               )
             }
           </dd>
-          <dt>Pendaftaran</dt><dd>
+          <dt>Periode Pendaftaran</dt>
+          <dd>
             {fmtDate(ev.registration_opens_at)} – {
               fmtDate(ev.registration_closes_at)
             }
           </dd>
-          <dt>Penyelenggara</dt><dd>{ev.organizer_name ?? "—"}</dd><dt>
-            Kuota tersisa
-          </dt><dd>{listing?.available ?? "—"} dari {ev.total_quota}</dd>
+          <dt>Penyelenggara</dt>
+          <dd>{ev.organizer_name ?? "Platform Event Partner"}</dd>
+          <dt>Sisa Kuota</dt>
+          <dd>
+            <b>{listing?.available ?? 0}</b> dari total {ev.total_quota} tiket
+          </dd>
         </dl>
         {
           ev.description && (
@@ -538,19 +613,19 @@ const jsonLd = {
                 ) : Astro.locals.user ? (
                   <button
                     class="btn"
-                    style="width:100%"
+                    style="width:100%;font-size:1.05rem;padding:12px 20px;font-weight:700;"
                     type="submit"
                     id="register-btn"
                   >
-                    Daftar sekarang
+                    Daftar Sekarang & Masuk Antrean →
                   </button>
                 ) : (
                   <a
                     class="btn"
-                    style="width:100%"
+                    style="width:100%;font-size:1.05rem;padding:12px 20px;font-weight:700;"
                     href={`/login?next=${next}`}
                   >
-                    Masuk untuk mendaftar
+                    Masuk untuk Mendaftar →
                   </a>
                 )}
                 <div
@@ -559,10 +634,25 @@ const jsonLd = {
                   role="alert"
                   hidden
                 />
-                <p class="meta" style="margin:0">
-                  Kuota diamankan lewat antrean. Anda punya waktu terbatas untuk
-                  melengkapi formulir dan membayar.
-                </p>
+                <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--dp-color-ground-muted);border:1px solid var(--dp-color-rule);border-radius:14px;margin-top:14px;font-size:12px;color:var(--dp-color-ink-secondary);line-height:1.45;">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    style="flex-shrink:0;margin-top:2px;"
+                  >
+                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <span>
+                    Kuota diamankan secara adil melalui antrean real-time. Anda
+                    memiliki waktu reservasi 30 menit untuk menyelesaikan data
+                    dan pembayaran setelah kuota berhasil dikunci.
+                  </span>
+                </div>
               </div>
             </form>
           )

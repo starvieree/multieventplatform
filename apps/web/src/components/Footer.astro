@@ -4,12 +4,48 @@ const year = new Date().getFullYear();
 <footer class="footer on-dark">
   <div class="wrap">
     <div class="footer__grid">
-      <div><a class="logo" href="/"><svg viewBox="0 0 32 32" aria-hidden="true" width="28" height="28"><rect width="32" height="32" rx="8" fill="#074ce0"/><path d="M9 11h14M9 16h14M9 21h8" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>Platform Event</a>
-        <p style="margin-top:14px;max-width:34ch">Satu tempat untuk menemukan event, mendaftar, membayar, dan memantau tiket.</p></div>
-      <nav aria-label="Jelajahi"><h2>Jelajahi</h2><ul><li><a href="/">Beranda</a></li><li><a href="/tentang">Tentang</a></li><li><a href="/events">Event</a></li><li><a href="/partnership">Partnership</a></li><li><a href="/blog">Blog</a></li><li><a href="/kontak">Kontak</a></li></ul></nav>
-      <nav aria-label="Akun"><h2>Akun</h2><ul><li><a href="/login">Masuk</a></li><li><a href="/register">Daftar</a></li><li><a href="/pesanan">Pesanan Saya</a></li><li><a href="/tiket-saya">Tiket Saya</a></li></ul></nav>
-      <nav aria-label="Legal"><h2>Legal</h2><ul><li><a href="/privacy">Kebijakan privasi</a></li><li><a href="/terms">Syarat & ketentuan</a></li></ul></nav>
+      <div>
+        <a class="logo" href="/">
+          <svg viewBox="0 0 32 32" aria-hidden="true" width="28" height="28">
+            <rect width="32" height="32" rx="8" fill="#2563eb"/>
+            <path d="M9 11h14M9 16h14M9 21h8" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+          </svg>
+          PlatformEvent<span class="brand-dot">.</span>
+        </a>
+        <p style="margin-top:14px;max-width:34ch">Satu platform tepercaya untuk menemukan event, mengamankan tiket kuota real-time, dan memantau status pesanan.</p>
+      </div>
+      <nav aria-label="Jelajahi">
+        <h2>Jelajahi</h2>
+        <ul>
+          <li><a href="/">Beranda</a></li>
+          <li><a href="/events">Semua Event</a></li>
+          <li><a href="/events?price=free">Event Gratis</a></li>
+          <li><a href="/partnership">Partnership Mitra</a></li>
+          <li><a href="/blog">Kabar & Cerita</a></li>
+          <li><a href="/kontak">Kontak Bantuan</a></li>
+        </ul>
+      </nav>
+      <nav aria-label="Akun Peserta">
+        <h2>Akun Peserta</h2>
+        <ul>
+          <li><a href="/login">Masuk Akun</a></li>
+          <li><a href="/register">Daftar Akun Baru</a></li>
+          <li><a href="/pesanan">Riwayat Pesanan</a></li>
+          <li><a href="/tiket-saya">Tiket Saya</a></li>
+        </ul>
+      </nav>
+      <nav aria-label="Informasi Legal">
+        <h2>Legal & Panduan</h2>
+        <ul>
+          <li><a href="/tentang">Tentang Platform</a></li>
+          <li><a href="/privacy">Kebijakan Privasi</a></li>
+          <li><a href="/terms">Syarat & Ketentuan</a></li>
+        </ul>
+      </nav>
     </div>
-    <div class="footer__legal"><span>© {year} Platform Event. Hak cipta dilindungi.</span><a href="/kontak">Hubungi kami</a></div>
+    <div class="footer__legal">
+      <span>© {year} PlatformEvent Indonesia. Hak cipta dilindungi undang-undang.</span>
+      <a href="/kontak">Pusat Bantuan & Kontak</a>
+    </div>
   </div>
 </footer>

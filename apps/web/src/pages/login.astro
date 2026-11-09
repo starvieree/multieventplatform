@@ -3,13 +3,89 @@ import PublicLayout from '../layouts/PublicLayout.astro';
 import FormField from '../components/FormField.astro';
 import Alert from '../components/Alert.astro';
 import { safeRedirect } from '../lib/utils/safe-redirect';
+
 if (Astro.locals.user) return Astro.redirect(safeRedirect(Astro.url.searchParams.get('next')));
-const sp = Astro.url.searchParams, next = safeRedirect(sp.get('next'));
-const err = { invalid: 'Email atau kata sandi salah.', unconfirmed: 'Email belum diverifikasi. Silakan periksa kotak masuk/spam email Anda untuk konfirmasi.', rate: 'Terlalu banyak percobaan. Coba lagi beberapa menit lagi.', suspended: 'Akun ini ditangguhkan. Hubungi kami untuk bantuan.', link: 'Tautan tidak valid atau sudah kedaluwarsa.' }[sp.get('error') ?? ''];
+
+const sp = Astro.url.searchParams;
+const next = safeRedirect(sp.get('next'));
+const err = {
+  invalid: 'Email atau kata sandi salah.',
+  unconfirmed: 'Email belum diverifikasi. Silakan periksa kotak masuk/spam email Anda untuk konfirmasi.',
+  rate: 'Terlalu banyak percobaan login gagal. Coba lagi beberapa menit lagi.',
+  suspended: 'Akun ini ditangguhkan. Hubungi kami untuk bantuan.',
+  link: 'Tautan tidak valid atau sudah kedaluwarsa.',
+}[sp.get('error') ?? ''];
 ---
-<PublicLayout title="Masuk" noindex><section class="auth wrap"><div class="card"><h1 style="font-size:2rem">Masuk</h1>
-  {sp.get('registered') && <Alert tone="ok">Akun dibuat. Periksa email Anda untuk verifikasi, lalu masuk.</Alert>}{err && <Alert tone="bad">{err}</Alert>}
-  <form class="form" method="post" action="/api/auth/signin" style="margin-top:16px"><input type="hidden" name="next" value={next} />
-    <FormField name="email" type="email" label="Email" required autocomplete="email" /><FormField name="password" type="password" label="Kata sandi" required autocomplete="current-password" />
-    <button class="btn" type="submit">Masuk</button></form>
-  <p class="small" style="margin:16px 0 0"><a href="/forgot-password">Lupa kata sandi?</a> · Belum punya akun? <a href={`/register`}>Daftar</a></p></div></section></PublicLayout>
+
+<PublicLayout title="Masuk ke Akun" noindex>
+  <section class="wrap" style="max-width: 460px; padding: 56px 0 80px;">
+    <div class="card" style="padding: 36px 32px; border-radius: 24px; box-shadow: 0 16px 36px -12px rgba(15, 23, 42, 0.1);">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span class="logo" style="justify-content: center; margin-bottom: 12px;">
+          <svg viewBox="0 0 32 32" aria-hidden="true" width="32" height="32">
+            <rect width="32" height="32" rx="8" fill="#2563eb" />
+            <path d="M9 11h14M9 16h14M9 21h8" stroke="#fff" stroke-width="2.4" stroke-linecap="round" />
+          </svg>
+          PlatformEvent<span class="brand-dot">.</span>
+        </span>
+        <h1 style="font-size: 1.6rem; font-weight: 750; margin: 4px 0 6px;">Selamat Datang Kembali</h1>
+        <p class="muted small" style="margin: 0;">Masuk untuk mengakses tiket, antrean, dan riwayat pesanan Anda.</p>
+      </div>
+
+      {sp.get('registered') && (
+        <div style="margin-bottom: 16px;">
+          <Alert tone="ok">Akun berhasil dibuat! Silakan periksa email Anda untuk verifikasi, lalu masuk.</Alert>
+        </div>
+      )}
+
+      {err && (
+        <div style="margin-bottom: 16px;">
+          <Alert tone="bad">{err}</Alert>
+        </div>
+      )}
+
+      <form class="form" method="post" action="/api/auth/signin">
+        <input type="hidden" name="next" value={next} />
+
+        <div class="field">
+          <label for="signin-email">Alamat Email</label>
+          <input
+            class="input"
+            id="signin-email"
+            name="email"
+            type="email"
+            placeholder="nama@email.com"
+            required
+            autocomplete="email"
+          />
+        </div>
+
+        <div class="field">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label for="signin-password" style="margin: 0;">Kata Sandi</label>
+            <a href="/forgot-password" class="small" style="font-size: 12px; font-weight: 500;">Lupa kata sandi?</a>
+          </div>
+          <input
+            class="input"
+            id="signin-password"
+            name="password"
+            type="password"
+            placeholder="Masukkan kata sandi"
+            required
+            autocomplete="current-password"
+          />
+        </div>
+
+        <button class="btn" style="width: 100%; margin-top: 8px; font-size: 15px; padding: 12px;" type="submit">
+          Masuk ke Akun →
+        </button>
+      </form>
+
+      <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--dp-color-rule); text-align: center;">
+        <p class="small muted" style="margin: 0;">
+          Belum punya akun? <a href="/register" style="font-weight: 600;">Daftar akun baru</a>
+        </p>
+      </div>
+    </div>
+  </section>
+</PublicLayout>

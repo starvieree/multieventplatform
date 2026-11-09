@@ -15,56 +15,68 @@ const { data: t } = await sb
 if (!t) return Astro.rewrite('/404');
 const ev = (t as any).registration?.event;
 ---
+
 <PublicLayout title={`E-Ticket ${t.ticket_code}`}>
-  <div class="wrap" style="padding: 24px 0 64px;">
+  <div class="wrap" style="padding: 28px 0 80px;">
     <Breadcrumb items={[{ label: 'Beranda', href: '/' }, { label: 'Tiket Saya', href: '/tiket-saya' }, { label: t.ticket_code }]} />
 
-    <div style="max-width: 600px; margin: 24px auto 0;">
-      <article class="card card--pad" style="border: 2px solid var(--dp-color-rule); box-shadow: 0 12px 32px -8px rgba(22,25,31,0.12);">
-        <div class="row between" style="border-bottom: 1px dashed var(--dp-color-rule); padding-bottom: 16px; margin-bottom: 20px;">
+    <div style="max-width: 620px; margin: 28px auto 0;">
+      <article
+        class="card"
+        style="padding: 36px 32px; border-radius: 24px; border: 1px solid var(--dp-color-rule); box-shadow: 0 16px 40px -12px rgba(15, 23, 42, 0.12); position: relative;"
+      >
+        <div class="row between" style="border-bottom: 1px dashed var(--dp-color-rule); padding-bottom: 18px; margin-bottom: 22px;">
           <div>
-            <span class="meta" style="letter-spacing: 0.05em; font-weight: 700;">OFFICIAL E-TICKET</span>
-            <div class="meta" style="font-size: 0.8rem;">Platform Event</div>
+            <span class="meta" style="letter-spacing: 0.06em; font-weight: 700; color: var(--dp-color-accent); font-size: 11px;">
+              OFFICIAL E-TICKET
+            </span>
+            <div style="font-weight: 700; font-size: 1.1rem; color: var(--dp-color-ink);">
+              PlatformEvent<span class="brand-dot">.</span>
+            </div>
           </div>
           <Badge status={t.status} />
         </div>
 
-        <h1 style="font-size: 1.5rem; margin-bottom: 16px; line-height: 1.25;">{ev?.title}</h1>
+        <h1 style="font-size: clamp(1.4rem, 3vw, 1.75rem); font-weight: 750; margin: 0 0 18px; line-height: 1.3;">
+          {ev?.title}
+        </h1>
 
-        <div style="background: var(--accent-tint); border: 1px solid #bfdbfe; border-radius: var(--radius-control); padding: 18px; text-align: center; margin-bottom: 24px;">
-          <span class="meta" style="font-size: 0.8rem; color: #1e40af; font-weight: 600;">KODE CHECK-IN / BOOKING</span>
-          <p style="font: 700 2rem var(--font-display); letter-spacing: 0.08em; color: #1e3a8a; margin: 4px 0 0;">
+        <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 18px; padding: 20px; text-align: center; margin-bottom: 24px;">
+          <span class="meta" style="font-size: 11.5px; color: #1e40af; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;">
+            KODE CHECK-IN RESMI
+          </span>
+          <p style="font: 800 2.2rem var(--font-display); letter-spacing: 0.1em; color: #1e3a8a; margin: 6px 0 0; font-family: monospace;">
             {t.ticket_code}
           </p>
         </div>
 
-        <dl class="kv" style="gap: 12px 20px; font-size: 0.95rem; margin-bottom: 24px;">
+        <dl class="kv" style="gap: 12px 20px; font-size: 14px; margin-bottom: 24px;">
           <dt>Nama Peserta</dt>
           <dd><b>{t.attendee_name || '—'}</b></dd>
           <dt>Waktu Acara</dt>
-          <dd>{ev?.start_at ? fmtDate(ev.start_at, true) : '—'} WIB</dd>
+          <dd><b>{ev?.start_at ? fmtDate(ev.start_at, true) : '—'} WIB</b></dd>
           <dt>Lokasi</dt>
           <dd>
-            {ev?.event_type === 'online' ? 'Online' : [ev?.venue_name, ev?.address].filter(Boolean).join(', ') || '—'}
+            {ev?.event_type === 'online' ? '🟢 Online (Tautan akan dibagikan)' : [ev?.venue_name, ev?.address].filter(Boolean).join(', ') || 'Lokasi Acara'}
             {ev?.event_type !== 'offline' && ev?.online_url && (
-              <> · <a href={ev.online_url} rel="noopener noreferrer" target="_blank">Tautan Acara</a></>
+              <> · <a href={ev.online_url} rel="noopener noreferrer" target="_blank" style="font-weight: 600;">Buka Tautan Acara ↗</a></>
             )}
           </dd>
           <dt>No. Registrasi</dt>
-          <dd>{(t as any).registration?.registration_code}</dd>
-          <dt>Tanggal Terbit</dt>
-          <dd>{fmtDate(t.issued_at, true)}</dd>
+          <dd style="font-family: monospace;">{(t as any).registration?.registration_code}</dd>
+          <dt>Tanggal Diterbitkan</dt>
+          <dd>{fmtDate(t.issued_at, true)} WIB</dd>
         </dl>
 
-        <div style="background: var(--dp-color-ground-muted); padding: 14px 16px; border-radius: var(--radius-control); margin-bottom: 24px;">
-          <b style="font-size: 0.9rem; display: block; margin-bottom: 4px;">Instruksi Check-in:</b>
-          <p class="meta" style="margin: 0; line-height: 1.5;">
-            Tunjukkan kode tiket ini pada layar ponsel Anda atau versi cetak kepada panitia di meja registrasi. Simpan tiket ini dengan baik dan jangan bagikan kodenya kepada pihak yang tidak berkepentingan.
+        <div style="background: var(--dp-color-ground-muted); padding: 16px 18px; border-radius: 16px; margin-bottom: 24px; border: 1px solid var(--dp-color-rule);">
+          <b style="font-size: 13.5px; display: block; margin-bottom: 4px; color: var(--dp-color-ink);">Instruksi Check-in Lokasi:</b>
+          <p class="meta" style="margin: 0; line-height: 1.5; font-size: 13px;">
+            Tunjukkan kode tiket ini pada layar ponsel Anda atau cetak PDF kepada panitia registrasi di pintu masuk. Satu kode hanya berlaku untuk satu kali pemindaian masuk.
           </p>
         </div>
 
         <div class="row" style="gap: 12px;">
-          <button class="btn" style="flex: 1;" type="button" onclick="window.print()">
+          <button class="btn" style="flex: 1; padding: 12px; font-weight: 650;" type="button" onclick="window.print()">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <polyline points="6 9 6 2 18 2 18 9" />
               <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
@@ -72,7 +84,7 @@ const ev = (t as any).registration?.event;
             </svg>
             Cetak / Simpan PDF
           </button>
-          <a class="btn btn--secondary" href="/tiket-saya">Kembali</a>
+          <a class="btn btn--secondary" href="/tiket-saya" style="padding: 12px 18px;">Kembali</a>
         </div>
       </article>
     </div>

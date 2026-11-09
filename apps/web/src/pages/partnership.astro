@@ -2,32 +2,200 @@
 import PublicLayout from '../layouts/PublicLayout.astro';
 import Breadcrumb from '../components/Breadcrumb.astro';
 import FormField from '../components/FormField.astro';
-const targets = [['Komunitas', 'Komunitas hobi, profesi, dan kampus yang rutin membuat acara.'], ['Organisasi', 'Yayasan, asosiasi, dan lembaga nirlaba.'], ['Institusi', 'Sekolah, perguruan tinggi, dan instansi.'], ['Perusahaan', 'Brand dan perusahaan yang menggelar acara publik.']];
-const forms = [['Penyelenggara event', 'Event Anda tampil di katalog dan menerima pendaftaran lewat platform.'], ['Sponsor dan promosi', 'Tampil di banner atau artikel yang relevan.'], ['Kolaborasi program', 'Rangkaian event bersama dengan kebutuhan khusus.']];
-const flow = ['Kirim formulir pengajuan', 'Tim meninjau dan menghubungi Anda', 'Disepakati ruang lingkup kerja sama', 'Event atau program mulai berjalan'];
-const faq = [['Berapa lama proses peninjauan?', 'Tim akan menghubungi lewat email yang Anda cantumkan setelah pengajuan ditinjau.'], ['Apakah ada biaya untuk mengajukan?', 'Mengajukan tidak dipungut biaya. Skema kerja sama dibahas setelah peninjauan.'], ['Apakah event gratis bisa didaftarkan?', 'Bisa. Event gratis langsung terkonfirmasi setelah formulir diisi dan kuota tersedia.']];
+
+const targets = [
+  ['Komunitas & Hobi', 'Komunitas teknologi, kreatif, olahraga, dan perkumpulan kampus yang rutin mengadakan workshop atau seminar.'],
+  ['Organisasi & Yayasan', 'Organisasi non-profit, asosiasi profesi, dan lembaga riset yang membutuhkan pendaftaran terstruktur.'],
+  ['Institusi Akademik', 'Universitas, politeknik, dan sekolah yang menyelenggarakan konferensi akademik atau wisuda.'],
+  ['Perusahaan & Promotor', 'Brand korporat, agensi, dan promotor festival yang membutuhkan sistem antrean tiket berkapasitas tinggi.'],
+];
+
+const forms = [
+  ['Penyelenggara Event Penuh', 'Event Anda tampil di katalog utama, dilengkapi sistem antrean war tiket otomatis dan integrasi gateway pembayaran.'],
+  ['Sponsor & Promosi Khusus', 'Tampil sebagai mitra resmi pada banner sorotan beranda, newsletter komunitas, dan artikel blog kami.'],
+  ['Program Kolaborasi Khusus', 'Rangkaian workshop berseri atau program pelatihan dengan kebutuhan formulir peserta kustom.'],
+];
+
+const flow = [
+  'Kirim formulir pengajuan kemitraan',
+  'Tim kami meninjau detail dan menghubungi Anda via WhatsApp/Email',
+  'Penyelarasan kebutuhan tiket, formulir, dan jadwal',
+  'Event resmi dipublikasikan dan pendaftaran dibuka untuk publik',
+];
+
+const faq = [
+  ['Berapa lama proses peninjauan pengajuan?', 'Tim kurasi kemitraan kami akan menghubungi Anda maksimal dalam waktu 1-2 hari kerja setelah formulir dikirim.'],
+  ['Apakah ada biaya untuk mendaftar sebagai mitra penyelenggara?', 'Pendaftaran kemitraan tidak dipungut biaya di awal. Skema bagi hasil atau platform fee hanya berlaku per tiket berbayar yang berhasil terjual.'],
+  ['Apakah event gratis (tanpa biaya tiket) bisa difasilitasi?', 'Tentu saja bisa. Event gratis tetap mendapatkan seluruh manfaat sistem antrean kuota dan formulir pendaftaran peserta.'],
+];
 ---
-<PublicLayout title="Partnership" description="Ajukan kerja sama penyelenggaraan event dengan platform pendaftaran multi-event.">
-  <section class="hero"><div class="wrap"><Breadcrumb items={[{ label: 'Beranda', href: '/' }, { label: 'Partnership' }]} />
-    <h1 style="margin-top:20px;max-width:20ch">Selenggarakan event bersama kami.</h1><p class="lead">Kelola pendaftaran, kuota, dan pembayaran peserta tanpa memeriksa bukti transfer satu per satu.</p>
-    <div class="row" style="margin-top:20px"><a class="btn" href="#ajukan">Ajukan kerja sama</a></div></div></section>
-  <section class="section section--muted"><div class="wrap"><div class="section-head"><h2>Siapa yang bisa bermitra</h2><p></p></div>
-    <div class="grid grid--4">{targets.map(([t, d]) => <article class="card card--pad"><h3>{t}</h3><p class="muted small" style="margin:0">{d}</p></article>)}</div></div></section>
-  <section class="section"><div class="wrap grid grid--2">
-    <div><h2>Bentuk kerja sama</h2><ul class="stack" style="padding:0;list-style:none">{forms.map(([t, d]) => <li><b>{t}</b><div class="muted">{d}</div></li>)}</ul></div>
-    <div><h2>Manfaat untuk mitra</h2><ul class="muted" style="padding-left:18px"><li>Kuota tidak oversold saat pendaftaran ramai.</li><li>Pembayaran terkonfirmasi otomatis.</li><li>Laporan pendaftaran dan pendapatan dapat diekspor.</li><li>Riwayat tindakan admin tercatat.</li></ul></div></div></section>
-  <section class="section section--muted"><div class="wrap"><h2>Alur pengajuan</h2><ol class="grid grid--4" style="list-style:none;padding:0">{flow.map((t, i) => <li class="card card--pad"><b style="font-family:var(--font-display)">Langkah {i + 1}</b><p style="margin:6px 0 0">{t}</p></li>)}</ol></div></section>
-  <section class="section" id="ajukan"><div class="wrap grid grid--2" style="align-items:start">
-    <div><h2>Formulir pengajuan</h2><p class="muted">Ceritakan organisasi dan rencana Anda. Kami hanya memakai data ini untuk menanggapi pengajuan.</p></div>
-    <form class="form card card--pad" data-json-form data-hp data-endpoint="/api/v1/partnership-applications" data-success="Pengajuan terkirim. Kami akan menghubungi Anda lewat email." data-reset>
-      <FormField name="organization_name" label="Nama organisasi" required /><FormField name="contact_name" label="Nama kontak" required />
-      <FormField name="email" type="email" label="Email" required autocomplete="email" /><FormField name="phone" type="tel" label="Telepon" autocomplete="tel" />
-      <FormField name="organization_type" type="select" label="Tipe organisasi" required options={[{ value: 'komunitas', label: 'Komunitas' }, { value: 'organisasi', label: 'Organisasi' }, { value: 'institusi', label: 'Institusi' }, { value: 'perusahaan', label: 'Perusahaan' }]} />
-      <FormField name="website" type="url" label="Situs web" hint="Awali dengan https://" /><FormField name="description" type="textarea" label="Rencana kerja sama" required rows={5} />
-      <div class="hp" aria-hidden="true"><label>Jangan diisi<input name="hp" tabindex="-1" autocomplete="off" /></label></div>
-      <FormField name="consent" type="checkbox" label="Saya menyetujui kebijakan privasi dan penggunaan data untuk menanggapi pengajuan ini." required />
-      <div data-feedback hidden></div><button class="btn" type="submit">Kirim pengajuan</button>
-    </form></div></section>
-  <section class="section section--muted"><div class="wrap grid grid--2" style="align-items:start"><div><h2>Pertanyaan umum</h2><p class="muted">Belum terjawab? <a href="/kontak">Hubungi kami</a>.</p></div><div>{faq.map(([q, a]) => <details class="faq"><summary>{q}</summary><div>{a}</div></details>)}</div></div></section>
+
+<PublicLayout title="Partnership Promotor & Penyelenggara Event" description="Ajukan kerja sama penyelenggaraan event dengan sistem kuota terverifikasi dan antrean tiket real-time.">
+  <section class="hero" style="padding-bottom: 24px;">
+    <div class="wrap">
+      <Breadcrumb items={[{ label: 'Beranda', href: '/' }, { label: 'Partnership' }]} />
+      <div style="margin-top: 18px;">
+        <span class="hero__badge" style="margin-bottom: 8px; font-size: 11px;">
+          Kemitraan Promotor
+        </span>
+        <h1 style="font-size: clamp(1.9rem, 4vw, 2.8rem); margin: 0 0 10px; max-width: 20ch;">
+          Selenggarakan Event Berkualitas Bersama Kami.
+        </h1>
+        <p class="lead" style="margin: 0; max-width: 60ch;">
+          Kelola pendaftaran peserta, amankan kuota dengan sistem antrean anti-down, dan terima pembayaran instan tanpa repot cek mutasi manual.
+        </p>
+        <div class="row" style="margin-top: 24px; gap: 12px;">
+          <a class="btn" href="#ajukan" style="padding: 12px 24px; font-weight: 700;">Ajukan Kemitraan Sekarang →</a>
+          <a class="btn btn--secondary" href="/tentang" style="padding: 12px 20px;">Pelajari Platform</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--muted">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="hero__badge" style="margin-bottom: 8px; font-size: 11px;">Kategori Mitra</span>
+          <h2 style="font-size: 1.6rem; margin: 0;">Siapa yang Dapat Menjadi Mitra?</h2>
+        </div>
+        <p class="lead" style="font-size: 1rem;">
+          Kami mendukung berbagai skala acara, mulai dari meetup komunitas lokal hingga festival skala nasional.
+        </p>
+      </div>
+
+      <div class="grid grid--4">
+        {targets.map(([t, d]) => (
+          <article class="card" style="padding: 24px; border-radius: 18px; border: 1px solid var(--dp-color-rule); box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.05);">
+            <div class="icon-dot" style="margin-bottom: 12px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" />
+                <path d="m9 12 2 2 4-4" />
+              </svg>
+            </div>
+            <h3 style="font-size: 1.12rem; font-weight: 700; margin-bottom: 8px;">{t}</h3>
+            <p class="muted small" style="margin: 0; line-height: 1.55;">{d}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap grid grid--2" style="gap: 40px; align-items: start;">
+      <div>
+        <span class="hero__badge" style="margin-bottom: 8px; font-size: 11px;">Model Kemitraan</span>
+        <h2 style="font-size: 1.6rem; margin: 0 0 18px;">Bentuk Kolaborasi</h2>
+        <ul class="stack" style="padding: 0; list-style: none; gap: 16px;">
+          {forms.map(([t, d]) => (
+            <li style="padding-bottom: 14px; border-bottom: 1px solid var(--dp-color-rule);">
+              <b style="font-size: 1.05rem; display: block; margin-bottom: 4px; color: var(--dp-color-ink);">{t}</b>
+              <div class="muted small" style="line-height: 1.5;">{d}</div>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div>
+        <span class="hero__badge" style="margin-bottom: 8px; font-size: 11px;">Keunggulan Sistem</span>
+        <h2 style="font-size: 1.6rem; margin: 0 0 18px;">Manfaat Bagi Penyelenggara</h2>
+        <div class="card" style="padding: 26px; border-radius: 20px; box-shadow: 0 8px 24px -6px rgba(15, 23, 42, 0.08);">
+          <ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 12px; line-height: 1.55; color: var(--dp-color-ink); font-size: 14.5px;">
+            <li><b>Sistem Antrean Anti-Down</b>: Menjaga server tetap stabil saat lonjakan ribuan peminat secara bersamaan.</li>
+            <li><b>Kuota Aman (No Overselling)</b>: Kuota terkunci presisi di tingkat database dengan waktu reservasi 30 menit.</li>
+            <li><b>Otomasi Pembayaran Multi-Channel</b>: Dukungan QRIS, Virtual Account, dan E-Wallet tanpa perlu cek bukti transfer manual.</li>
+            <li><b>Dashboard Real-time & Ekspor Data</b>: Pantau grafik penjualan, data registrasi, dan unduh laporan ke format Excel/CSV kapan saja.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--muted">
+    <div class="wrap">
+      <div class="section-head" style="margin-bottom: 28px;">
+        <div>
+          <span class="hero__badge" style="margin-bottom: 8px; font-size: 11px;">Langkah Kemitraan</span>
+          <h2 style="font-size: 1.6rem; margin: 0;">Alur Pengajuan yang Mudah</h2>
+        </div>
+      </div>
+
+      <div class="steps-grid">
+        {flow.map((t, i) => (
+          <div class="steps-card">
+            <span class="steps-card__num">{i + 1}</span>
+            <h3>Langkah {i + 1}</h3>
+            <p>{t}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="ajukan">
+    <div class="wrap grid grid--2" style="gap: 40px; align-items: start;">
+      <div>
+        <span class="hero__badge" style="margin-bottom: 8px; font-size: 11px;">Formulir Resmi</span>
+        <h2 style="font-size: 1.7rem; margin: 0 0 12px;">Mulai Diskusi Bersama Tim Kami</h2>
+        <p class="muted" style="line-height: 1.6; margin-bottom: 24px;">
+          Ceritakan konsep event, perkiraan peserta, dan target tanggal Anda. Tim kemitraan kami akan segera meninjau dan menghubungi Anda.
+        </p>
+
+        <div style="background: var(--dp-color-ground-muted); padding: 18px 20px; border-radius: 16px; border: 1px solid var(--dp-color-rule);">
+          <b style="font-size: 14px; display: block; margin-bottom: 4px;">Pertanyaan Mendadak?</b>
+          <p class="meta" style="margin: 0; line-height: 1.5;">
+            Anda juga dapat berkonsultasi langsung melalui halaman <a href="/kontak" style="font-weight: 600;">Kontak Bantuan</a> kami.
+          </p>
+        </div>
+      </div>
+
+      <div class="card" style="padding: 32px; border-radius: 20px; box-shadow: 0 14px 32px -12px rgba(15, 23, 42, 0.1);">
+        <form class="form" data-json-form data-hp data-endpoint="/api/v1/partnership-applications" data-success="Pengajuan kemitraan berhasil terkirim. Tim kami akan menghubungi Anda melalui email/WhatsApp." data-reset>
+          <FormField name="organization_name" label="Nama Penyelenggara / Komunitas" required placeholder="Contoh: Komunitas Developer Jakarta" />
+          <FormField name="contact_name" label="Nama Penanggung Jawab (PIC)" required autocomplete="name" />
+          <FormField name="email" type="email" label="Email Resmi" required autocomplete="email" placeholder="pic@organisasi.id" />
+          <FormField name="phone" type="tel" label="Nomor WhatsApp PIC" required autocomplete="tel" placeholder="08xxxxxxxxxx" />
+          <FormField
+            name="organization_type"
+            type="select"
+            label="Kategori Penyelenggara"
+            required
+            options={[
+              { value: 'komunitas', label: 'Komunitas & Hobi' },
+              { value: 'organisasi', label: 'Organisasi / Yayasan' },
+              { value: 'institusi', label: 'Institusi Akademik / Kampus' },
+              { value: 'perusahaan', label: 'Perusahaan / Korporasi' },
+            ]}
+          />
+          <FormField name="website" type="url" label="Tautan Website / Media Sosial" hint="Instagram, LinkedIn, atau situs web" />
+          <FormField name="description" type="textarea" label="Deskripsi Acara & Rencana Kerja Sama" required rows={4} placeholder="Jelaskan ringkas topik event, target kuota peserta, dan tanggal pelaksanaan..." />
+          <div class="hp" aria-hidden="true"><label>Jangan diisi<input name="hp" tabindex="-1" autocomplete="off" /></label></div>
+          <FormField name="consent" type="checkbox" label="Saya menyetujui kebijakan privasi dan penggunaan data ini untuk penanganan kerja sama event." required />
+          <div data-feedback hidden style="margin-top: 10px;"></div>
+          <button class="btn" style="width: 100%; margin-top: 12px; font-size: 15px; padding: 13px; font-weight: 700;" type="submit">
+            Kirim Pengajuan Kemitraan →
+          </button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--muted">
+    <div class="wrap grid grid--2" style="gap: 36px; align-items: start;">
+      <div>
+        <span class="hero__badge" style="margin-bottom: 8px; font-size: 11px;">FAQ</span>
+        <h2 style="font-size: 1.6rem; margin: 0 0 8px;">Pertanyaan Seputar Kemitraan</h2>
+      </div>
+      <div>
+        {faq.map(([q, a]) => (
+          <details class="faq">
+            <summary style="font-size: 15px; font-weight: 650;">{q}</summary>
+            <div style="font-size: 14px; line-height: 1.6;">{a}</div>
+          </details>
+        ))}
+      </div>
+    </div>
+  </section>
+
   <script>import '../scripts/json-form.ts';</script>
 </PublicLayout>

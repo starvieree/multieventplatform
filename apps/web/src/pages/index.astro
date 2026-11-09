@@ -3,9 +3,11 @@ import PublicLayout from "../layouts/PublicLayout.astro";
 import HeroDiagram from "../components/HeroDiagram.astro";
 import EventCard from "../components/EventCard.astro";
 import StateBox from "../components/StateBox.astro";
-import { fmtDate, mediaUrl } from "../lib/utils/format";
+import { fmtDate, mediaUrl, rupiah } from "../lib/utils/format";
+
 const sb = Astro.locals.supabase;
 const user = Astro.locals.user;
+
 const [featured, cats, posts, evCount] = await Promise.all([
   sb
     .from("event_listing")
@@ -18,7 +20,7 @@ const [featured, cats, posts, evCount] = await Promise.all([
     .select("name,slug,description")
     .eq("is_active", true)
     .order("name")
-    .limit(8),
+    .limit(10),
   sb
     .from("blogs")
     .select("title,slug,excerpt,thumbnail_path,published_at,category")
@@ -30,236 +32,306 @@ const [featured, cats, posts, evCount] = await Promise.all([
     .select("id", { count: "exact", head: true })
     .eq("status", "published"),
 ]);
-// Statistik hanya angka nyata dari database; bila kosong, bagian ini tidak ditampilkan.
+
 const facts = [
   [evCount.count, "event dibuka"],
-  [cats.data?.length, "kategori event"],
-  [posts.data?.length, "artikel terbaru"],
+  [cats.data?.length, "kategori pilihan"],
+  [posts.data?.length, "artikel & panduan"],
 ].filter(([n]) => Number(n) > 0) as [number, string][];
-const steps = [
-  ["Temukan event", "Cari berdasarkan kategori, tanggal, lokasi, atau harga."],
-  [
-    "Daftar dan isi data",
-    "Masuk, pilih tiket, lalu isi formulir saat kuota Anda sudah diamankan.",
-  ],
-  [
-    "Selesaikan pembayaran",
-    "Bayar lewat Midtrans bila event berbayar. Status berubah otomatis.",
-  ],
-  [
-    "Pantau status dan tiket",
-    "Lihat antrean, pesanan, dan tiket kapan saja lewat akun Anda.",
-  ],
-];
-const benefits = [
-  [
-    "Informasi terpusat",
-    "Jadwal, lokasi, tiket, dan syarat peserta ada di satu halaman event.",
-  ],
-  [
-    "Pendaftaran terstruktur",
-    "Antrean menjaga urutan dan kuota tetap akurat saat pendaftaran ramai.",
-  ],
-  [
-    "Status dapat dipantau",
-    "Setiap tahap tercatat: antrean, reservasi, pembayaran, hingga tiket.",
-  ],
-  [
-    "Pembayaran terintegrasi",
-    "Konfirmasi datang dari penyedia pembayaran, bukan dari bukti transfer manual.",
-  ],
-];
+
+const topEvent = featured.data?.[0];
 const hasPosts = Boolean(posts.data && posts.data.length > 0);
 ---
 
-<PublicLayout title="Platform Event — daftar event dengan kuota yang dijaga">
+<PublicLayout title="PlatformEvent — Temukan Event Terbaik, Amankan Tiket Tanpa Ribet">
+  <!-- Section 1: Hero Section & Quick Event Finder -->
   <section class="hero">
     <div class="wrap">
       <div class="hero__grid">
         <div>
-          <h1>Daftar event tanpa ragu soal kuota dan pembayaran.</h1>
-          <p class="lead">
-            Satu tempat untuk menemukan event, mengamankan tiket lewat antrean
-            yang adil, membayar, dan memantau statusnya.
-          </p>
-          <div class="row hero__actions">
-            <a class="btn" href="/events">Jelajahi event</a><a
-              class="btn btn--secondary"
-              href="/tentang">Pelajari platform</a>
+          <div class="hero__badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+            Sistem Antrean Tiket Real-Time
           </div>
+
+          <h1>Temukan Event Terbaik, Amankan Tiket Tanpa Ribet.</h1>
+          <p class="lead">
+            Akses konferensi teknologi, workshop bisnis, seminar, hingga festival musik. Dilengkapi sistem antrean kuota yang adil dan konfirmasi pembayaran instan.
+          </p>
+
           <form
-            class="search"
+            class="hero__quick-finder"
             action="/events"
             method="get"
             role="search"
             aria-label="Cari event"
           >
-            <div>
-              <label class="sr-only" for="hq">Kata kunci</label><input
-                class="input"
+            <div class="hero__finder-input">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <label class="sr-only" for="hq">Nama Event</label>
+              <input
                 id="hq"
                 name="q"
-                placeholder="Cari nama event"
+                placeholder="Cari nama event atau topik..."
                 maxlength="80"
               />
             </div>
-            <div>
-              <label class="sr-only" for="hc">Kategori</label><select
-                class="input"
-                id="hc"
-                name="category"
-                ><option value="">Semua kategori</option>{
-                  cats.data?.map((c) => (
-                    <option value={c.slug}>{c.name}</option>
-                  ))
-                }</select>
+
+            <div class="hero__finder-divider" aria-hidden="true"></div>
+
+            <div class="hero__finder-input">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              <label class="sr-only" for="hc">Kategori</label>
+              <select id="hc" name="category">
+                <option value="">Semua Kategori</option>
+                {cats.data?.map((c) => (
+                  <option value={c.slug}>{c.name}</option>
+                ))}
+              </select>
             </div>
-            <button class="btn" type="submit">Cari</button>
+
+            <button class="btn" type="submit">Cari Event</button>
           </form>
         </div>
-        <HeroDiagram />
-      </div>
-      {
-        facts.length > 0 && (
-          <div class="facts">
-            {facts.map(([n, l]) => (
-              <div>
-                <b>{n}</b>
-                <span class="muted small">{l}</span>
+
+        <div>
+          {topEvent ? (
+            <a href={`/events/${topEvent.slug}`} class="hero-showcase">
+              <div class="hero-showcase__img-wrap">
+                {mediaUrl(topEvent.poster_path) ? (
+                  <img
+                    class="hero-showcase__img"
+                    src={mediaUrl(topEvent.poster_path)!}
+                    alt={`Poster ${topEvent.title}`}
+                    width="640"
+                    height="360"
+                  />
+                ) : (
+                  <div class="event-card__ph">{topEvent.title?.[0]}</div>
+                )}
+                <span class="hero-showcase__badge">
+                  {topEvent.category_name ?? "Event Sorotan"}
+                </span>
+                <span class="hero-showcase__format">
+                  {topEvent.event_type === "online" ? "🟢 Online" : `📍 ${topEvent.city || topEvent.venue_name || "Venue"}`}
+                </span>
               </div>
-            ))}
-          </div>
-        )
-      }
+              <div class="hero-showcase__body">
+                <span class="hero-showcase__date">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                  {fmtDate(topEvent.start_at)}
+                </span>
+                <h2 class="hero-showcase__title">{topEvent.title}</h2>
+                <div class="hero-showcase__foot">
+                  <div>
+                    <span class="price-label">Mulai dari</span>
+                    <span class={`price ${Number(topEvent.min_price) === 0 ? "price--free" : ""}`}>
+                      {Number(topEvent.min_price) === 0 ? "Gratis" : rupiah(topEvent.min_price)}
+                    </span>
+                  </div>
+                  <span class="btn btn--sm">Detail Tiket →</span>
+                </div>
+              </div>
+            </a>
+          ) : (
+            <HeroDiagram />
+          )}
+        </div>
+      </div>
+
+      {facts.length > 0 && (
+        <div class="facts">
+          {facts.map(([n, l]) => (
+            <div>
+              <b>{n}</b>
+              <span class="muted small">{l}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   </section>
 
-  {
-    cats.data && cats.data.length > 0 && (
-      <section class="section section--muted">
-        <div class="wrap">
-          <div class="section-head">
-            <>
-              <h2>Kategori event</h2>
-              <p class="lead">Mulai dari topik yang Anda minati.</p>
-            </>
-          </div>
-          <div class="grid grid--4">
-            {cats.data.map((c) => (
-              <a class="card cat-tile" href={`/events?category=${c.slug}`}>
-                <h3>{c.name}</h3>
-                <p class="muted small" style="margin:0">
-                  {c.description ?? "Lihat event dalam kategori ini."}
-                </p>
-              </a>
-            ))}
-          </div>
+  <!-- Section 2: Bilah Filter Kategori Cepat (Horizontal Pill Chips) -->
+  <section style="padding: 14px 0; border-block: 1px solid var(--dp-color-rule); background: #ffffff;">
+    <div class="wrap">
+      <div class="chips-bar" role="navigation" aria-label="Kategori Populer">
+        <div class="chips-bar__item">
+          <a class="chips-pill is-active" href="/events">
+            🔥 Semua Event
+          </a>
         </div>
-      </section>
-    )
-  }
+        {cats.data?.map((c) => (
+          <div class="chips-bar__item">
+            <a class="chips-pill" href={`/events?category=${c.slug}`}>
+              {c.name}
+            </a>
+          </div>
+        ))}
+        <div class="chips-bar__item">
+          <a class="chips-pill" href="/events?price=free">
+            🆓 Tiket Gratis
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
 
+  <!-- Section 3: Event Pilihan & Segera Berakhir -->
   <section class="section">
     <div class="wrap">
       <div class="section-head">
-        <h2>Event unggulan</h2><p class="lead">
-          Hanya event yang sedang dibuka untuk pendaftaran.
-        </p>
-      </div>
-      {
-        featured.error ? (
-          <StateBox
-            kind="error"
-            title="Event belum dapat dimuat"
-            text="Muat ulang halaman ini beberapa saat lagi."
-            href="/"
-            action="Muat ulang"
-          />
-        ) : featured.data?.length ? (
-          <div class="grid grid--3">
-            {featured.data.map((e) => (
-              <EventCard e={e} />
-            ))}
-          </div>
-        ) : (
-          <StateBox
-            title="Belum ada event yang dibuka"
-            text="Event baru akan muncul di sini begitu pendaftarannya dibuka."
-            href="/partnership"
-            action="Jadi mitra penyelenggara"
-          />
-        )
-      }
-      {
-        featured.data?.length ? (
-          <p style="margin-top:28px">
-            <a class="btn btn--secondary" href="/events">
-              Lihat semua event
-            </a>
+        <div>
+          <h2>Event Paling Diminati</h2>
+          <p class="lead">
+            Jangan lewatkan kesempatan. Tiket untuk event di bawah ini sedang dibuka untuk umum.
           </p>
-        ) : null
-      }
+        </div>
+        <div style="text-align: right;">
+          <a class="btn btn--secondary" href="/events">
+            Lihat Semua Event →
+          </a>
+        </div>
+      </div>
+
+      {featured.error ? (
+        <StateBox
+          kind="error"
+          title="Event belum dapat dimuat"
+          text="Silakan muat ulang halaman ini beberapa saat lagi."
+          href="/"
+          action="Muat ulang"
+        />
+      ) : featured.data?.length ? (
+        <div class="grid grid--3">
+          {featured.data.map((e) => (
+            <EventCard e={e} />
+          ))}
+        </div>
+      ) : (
+        <StateBox
+          title="Belum ada event yang dibuka"
+          text="Event baru akan segera hadir begitu jadwal pendaftaran dibuka."
+          href="/partnership"
+          action="Buka event Anda di sini"
+        />
+      )}
     </div>
   </section>
 
+  <!-- Section 4: Alur Pendaftaran Adil & Transparan (How It Works) -->
   <section class="section section--muted">
     <div class="wrap">
       <div class="section-head">
-        <h2>Cara kerja</h2><p class="lead">
-          Dari menemukan event sampai tiket terbit, setiap langkah bisa
-          dipantau.
-        </p>
+        <div>
+          <h2>Pengalaman Beli Tiket yang Transparan</h2>
+          <p class="lead">
+            Tidak ada lagi drama kuota over-selling atau tiket hangus tiba-tiba di tengah proses.
+          </p>
+        </div>
       </div>
-      <ol class="steps">
-        {
-          steps.map(([t, d]) => (
-            <li>
-              <>
-                <h3>{t}</h3>
-                <p>{d}</p>
-              </>
-            </li>
-          ))
-        }
-      </ol>
-      <div class="section-head">
-        <h2>Kenapa memakai platform ini</h2><p></p>
+
+      <div class="steps-grid">
+        <div class="steps-card">
+          <span class="steps-card__num">1</span>
+          <h3>Pilih & Masuk Antrean</h3>
+          <p>
+            Saat event ramai peminat, sistem antrean otomatis mengurutkan peserta secara adil dan transparan tanpa crash.
+          </p>
+        </div>
+
+        <div class="steps-card">
+          <span class="steps-card__num">2</span>
+          <h3>Amankan Slot 30 Menit</h3>
+          <p>
+            Begitu giliran Anda tiba, tiket langsung dikunci selama 30 menit. Peserta lain tidak bisa merebut kuota Anda.
+          </p>
+        </div>
+
+        <div class="steps-card">
+          <span class="steps-card__num">3</span>
+          <h3>Pembayaran Otomatis</h3>
+          <p>
+            Bayar mudah via Virtual Account, QRIS, atau Kartu Kredit Midtrans. Status lunas terverifikasi seketika.
+          </p>
+        </div>
+
+        <div class="steps-card">
+          <span class="steps-card__num">4</span>
+          <h3>E-Ticket Siap Pakai</h3>
+          <p>
+            Dapatkan barcode e-ticket resmi di menu Tiket Saya dan email untuk akses langsung saat check-in di venue.
+          </p>
+        </div>
       </div>
-      <ul class="feature-list">
-        {
-          benefits.map(([t, d]) => (
-            <li>
-              <>
-                <b>{t}</b>
-                <span>{d}</span>
-              </>
-            </li>
-          ))
-        }
-      </ul>
     </div>
   </section>
 
-  {
-    hasPosts && (
-      <section class="section">
-        <div class="wrap">
-          <div class="section-head">
-            <>
-              <h2>Artikel terbaru</h2>
-              <p class="lead">
-                Panduan dan cerita seputar penyelenggaraan event.
-              </p>
-            </>
+  <!-- Section 5: Ajakan Kolaborasi Mitra Promotor -->
+  <section class="section">
+    <div class="wrap">
+      <div class="promoter-banner">
+        <div>
+          <span class="badge" style="background: rgba(37,99,235,0.2); color: #93c5fd; border-color: rgba(37,99,235,0.4); margin-bottom: 14px;">
+            Kemitraan Promotor & Komunitas
+          </span>
+          <h2>Ingin Menyelenggarakan Event Bersama Kami?</h2>
+          <p>
+            Buka pendaftaran event Anda dengan sistem kuota anti-down, kelola formulir peserta secara kustom, dan terima pembayaran tiket tanpa repot verifikasi mutasi manual.
+          </p>
+        </div>
+        <div class="promoter-banner__actions">
+          <a class="btn btn--white" href="/partnership">
+            Daftar Sebagai Mitra Penyelenggara
+          </a>
+          <a class="btn btn--ghost-light" href="/kontak">
+            Konsultasi dengan Tim Kami
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 6: Cerita & Wawasan Event -->
+  {hasPosts && (
+    <section class="section section--muted">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <h2>Kabar & Cerita Terkini</h2>
+            <p class="lead">
+              Panduan peserta, sorotan pembicara, dan wawasan terkini seputar industri event.
+            </p>
           </div>
-          <div class="grid grid--3">
-            {posts.data!.map((p) => (
-              <article class="card event-card">
+          <div style="text-align: right;">
+            <a class="btn btn--secondary" href="/blog">
+              Lihat Semua Artikel →
+            </a>
+          </div>
+        </div>
+
+        <div class="grid grid--3">
+          {posts.data!.map((p) => (
+            <article class="card event-card">
+              <div class="event-card__img-wrap">
                 {mediaUrl(p.thumbnail_path) ? (
                   <img
                     class="event-card__img"
                     src={mediaUrl(p.thumbnail_path)!}
-                    alt=""
+                    alt={`Thumbnail ${p.title}`}
                     width="640"
                     height="360"
                     loading="lazy"
@@ -269,42 +341,36 @@ const hasPosts = Boolean(posts.data && posts.data.length > 0);
                     {p.title[0]}
                   </div>
                 )}
-                <div class="event-card__body">
-                  <span class="meta">{fmtDate(p.published_at)}</span>
-                  <h3>
-                    <a href={`/blog/${p.slug}`}>{p.title}</a>
-                  </h3>
-                  <p class="muted small" style="margin:0">
-                    {p.excerpt}
-                  </p>
+                {p.category && (
+                  <span class="event-card__badge-tag">{p.category}</span>
+                )}
+              </div>
+              <div class="event-card__body">
+                <div class="event-card__meta-row">
+                  <svg class="event-card__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                  <span>{fmtDate(p.published_at)}</span>
                 </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-    )
-  }
-
-  <section class={`section ${hasPosts ? "section--muted" : ""}`}>
-    <div class="wrap">
-      <div class="section-head" style="margin:0">
-        <h2>Siap mendaftar atau menyelenggarakan event?</h2>
-        <div class="row">
-          <a class="btn" href="/events">Jelajahi event</a>
-          {
-            user ? (
-              <a class="btn btn--secondary" href="/tiket-saya">
-                Lihat tiket saya
-              </a>
-            ) : (
-              <a class="btn btn--secondary" href="/register">
-                Buat akun
-              </a>
-            )
-          }
+                <h3>
+                  <a href={`/blog/${p.slug}`}>{p.title}</a>
+                </h3>
+                <p class="muted small" style="margin:0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                  {p.excerpt}
+                </p>
+                <div class="event-card__foot">
+                  <a class="btn btn--secondary btn--sm" href={`/blog/${p.slug}`}>
+                    Baca Artikel →
+                  </a>
+                </div>
+              </div>
+            </article>
+          ))}
         </div>
       </div>
-    </div>
-  </section>
+    </section>
+  )}
 </PublicLayout>

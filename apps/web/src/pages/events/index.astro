@@ -37,9 +37,39 @@ const getChipValue = (k: string, v: string) => {
 const chips = Object.entries(f).filter(([, v]) => Boolean(v));
 const without = (k: string) => { const u = new URL(Astro.url); u.searchParams.delete(k); u.searchParams.delete('page'); return u.pathname + u.search; };
 ---
-<PublicLayout title="Katalog event" description="Cari event berdasarkan kategori, lokasi, tanggal, dan harga.">
-  <section class="section--tight"><div class="wrap"><Breadcrumb items={[{ label: 'Beranda', href: '/' }, { label: 'Event' }]} />
-    <h1 style="margin-top:20px">Katalog event</h1><p class="lead">Temukan event yang sedang dibuka dan daftar langsung dari halaman detailnya.</p></div></section>
+<PublicLayout title="Katalog Event — Jelajahi Acara Terbaik" description="Cari event berdasarkan kategori, lokasi, tanggal, dan harga.">
+  <section class="section--tight" style="padding-bottom: 0;">
+    <div class="wrap">
+      <Breadcrumb items={[{ label: 'Beranda', href: '/' }, { label: 'Event' }]} />
+      <div style="margin-top: 16px; margin-bottom: 14px;">
+        <span class="hero__badge" style="margin-bottom: 8px; font-size: 11px;">
+          Katalog Lengkap
+        </span>
+        <h1 style="font-size: clamp(1.8rem, 3.5vw, 2.4rem); margin: 0 0 6px;">Jelajahi Event Pilihan</h1>
+        <p class="lead" style="margin: 0; font-size: 1rem;">Temukan event yang sedang dibuka dan amankan tiket langsung melalui sistem antrean kuota terverifikasi.</p>
+      </div>
+
+      <div class="chips-bar" style="margin-top: 12px; padding-bottom: 16px;" role="navigation" aria-label="Filter Cepat Kategori">
+        <div class="chips-bar__item">
+          <a class={`chips-pill ${!f.category && !f.price_type ? 'is-active' : ''}`} href="/events">
+            🔥 Semua Event
+          </a>
+        </div>
+        {cats?.map((c) => (
+          <div class="chips-bar__item">
+            <a class={`chips-pill ${f.category === c.slug ? 'is-active' : ''}`} href={`/events?category=${c.slug}`}>
+              {c.name}
+            </a>
+          </div>
+        ))}
+        <div class="chips-bar__item">
+          <a class={`chips-pill ${f.price_type === 'free' ? 'is-active' : ''}`} href="/events?price_type=free">
+            🆓 Tiket Gratis
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
   <section class="section" style="padding-top:16px"><div class="wrap">
     <div class="events-layout">
       <!-- Sidebar Filter di Kiri -->

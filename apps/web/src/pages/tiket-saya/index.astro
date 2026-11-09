@@ -19,46 +19,72 @@ const list = (tickets ?? []).map((t: any) => ({
   event: t.registration?.event,
 }));
 ---
+
 <PublicLayout title="Tiket Saya">
-  <div class="wrap" style="padding: 32px 0 64px;">
-    <div style="margin-bottom: 28px;">
-      <h1 style="font-size: clamp(1.8rem, 3.5vw, 2.4rem); margin-bottom: 6px;">Tiket Saya</h1>
-      <p class="lead" style="margin: 0; font-size: 1rem;">Daftar e-ticket event yang sudah terbit. Tunjukkan kode tiket saat check-in di lokasi acara.</p>
+  <div class="wrap" style="padding: 36px 0 80px;">
+    <div style="margin-bottom: 32px; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+          <h1 style="font-size: clamp(1.8rem, 3.5vw, 2.4rem); margin: 0;">Tiket Saya</h1>
+          {list.length > 0 && <span class="badge badge--ok">{list.length} Tiket Diterbitkan</span>}
+        </div>
+        <p class="lead" style="margin: 0; font-size: 1rem;">
+          Daftar e-ticket resmi Anda. Tunjukkan kode tiket atau barcode saat registrasi kedatangan di lokasi acara.
+        </p>
+      </div>
+
+      <a class="btn btn--secondary btn--sm" href="/pesanan">
+        Lihat Riwayat Pesanan →
+      </a>
     </div>
 
     {error ? (
-      <StateBox kind="error" title="Gagal memuat tiket" text="Terjadi kendala koneksi ke database." action="Muat ulang" href="/tiket-saya" />
+      <StateBox kind="error" title="Gagal memuat tiket" text="Terjadi kendala koneksi saat mengambil data tiket." action="Muat ulang" href="/tiket-saya" />
     ) : list.length === 0 ? (
-      <StateBox title="Belum ada tiket" text="Anda belum memiliki tiket aktif. Cari event menarik dan amankan tiketmu sekarang!" action="Jelajahi Event" href="/events" />
+      <StateBox
+        title="Belum Ada Tiket yang Diterbitkan"
+        text="Anda belum memiliki tiket acara aktif. Temukan berbagai event menarik dan amankan kuota Anda sekarang!"
+        action="Jelajahi Event Pilihan"
+        href="/events"
+      />
     ) : (
-      <div class="grid grid--2" style="gap: 20px;">
+      <div class="grid grid--2" style="gap: 24px;">
         {list.map((t) => (
-          <article class="card" style="display:flex;flex-direction:column;justify-content:space-between;border-left: 4px solid var(--dp-color-accent);">
-            <div class="card__body" style="padding: 22px;">
-              <div class="row between" style="margin-bottom: 12px;">
-                <span class="meta" style="font-weight:600;letter-spacing:.02em;">E-TICKET</span>
+          <article
+            class="card"
+            style="display: flex; flex-direction: column; justify-content: space-between; border-radius: 20px; overflow: hidden; border: 1px solid var(--dp-color-rule); box-shadow: 0 10px 28px -10px rgba(15, 23, 42, 0.08); transition: transform 0.2s ease;"
+          >
+            <div style="padding: 24px;">
+              <div class="row between" style="margin-bottom: 14px;">
+                <span class="meta" style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: var(--dp-color-accent); text-transform: uppercase;">
+                  OFFICIAL E-TICKET
+                </span>
                 <Badge status={t.status} />
               </div>
-              <h2 style="font-size: 1.25rem; line-height: 1.3; margin-bottom: 12px;">
-                <a href={t.event?.slug ? `/events/${t.event.slug}` : '#'} style="color:var(--dp-color-ink);text-decoration:none;">
+
+              <h2 style="font-size: 1.25rem; font-weight: 750; line-height: 1.3; margin: 0 0 12px;">
+                <a href={t.event?.slug ? `/events/${t.event.slug}` : '#'} style="color: var(--dp-color-ink); text-decoration: none;">
                   {t.event?.title ?? 'Event'}
                 </a>
               </h2>
-              <dl class="kv" style="font-size: 0.9rem; margin-bottom: 16px;">
-                <dt>Waktu</dt>
-                <dd>{t.event?.start_at ? fmtDate(t.event.start_at, true) : '—'} WIB</dd>
+
+              <dl class="kv" style="font-size: 13.5px; margin-bottom: 20px; gap: 8px 16px;">
+                <dt>Waktu Acara</dt>
+                <dd><b>{t.event?.start_at ? fmtDate(t.event.start_at, true) : '—'} WIB</b></dd>
                 <dt>Lokasi</dt>
-                <dd>{t.event?.event_type === 'online' ? 'Online' : [t.event?.venue_name, t.event?.address].filter(Boolean).join(', ') || '—'}</dd>
-                <dt>Peserta</dt>
+                <dd>{t.event?.event_type === 'online' ? '🟢 Online Webinar' : [t.event?.venue_name, t.event?.address].filter(Boolean).join(', ') || 'Venue Acara'}</dd>
+                <dt>Nama Peserta</dt>
                 <dd>{t.attendee || '—'}</dd>
               </dl>
 
-              <div style="background:var(--dp-color-ground-muted);padding:12px 14px;border-radius:var(--radius-control);display:flex;justify-content:space-between;align-items:center;">
+              <div style="background: var(--dp-color-ground-muted); border: 1px dashed var(--dp-color-rule); padding: 14px 18px; border-radius: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                 <div>
-                  <span class="meta" style="font-size:0.75rem;display:block;">KODE TIKET</span>
-                  <b style="font-size:1.15rem;font-family:var(--font-display);letter-spacing:0.04em;">{t.code}</b>
+                  <span class="meta" style="font-size: 11px; display: block; font-weight: 600; text-transform: uppercase;">Kode Check-in</span>
+                  <b style="font-size: 1.25rem; font-family: monospace; letter-spacing: 0.06em; color: var(--dp-color-ink);">{t.code}</b>
                 </div>
-                <a class="btn btn--sm" href={`/tiket-saya/${t.id}`}>Buka E-Ticket</a>
+                <a class="btn btn--sm" href={`/tiket-saya/${t.id}`}>
+                  Buka E-Ticket →
+                </a>
               </div>
             </div>
           </article>

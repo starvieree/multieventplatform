@@ -1,17 +1,108 @@
 ---
-interface Props { name: string; label: string; type?: string; value?: any; required?: boolean; options?: (string | { value: string; label: string })[]; hint?: string; rows?: number; autocomplete?: string; full?: boolean; min?: number; max?: number }
-const { name, label, type = 'text', value = '', required = false, options = [], hint, rows = 4, autocomplete, full, min, max } = Astro.props;
+interface Props {
+  name: string;
+  label: string;
+  type?: string;
+  value?: any;
+  required?: boolean;
+  options?: (string | { value: string; label: string })[];
+  hint?: string;
+  rows?: number;
+  autocomplete?: string;
+  full?: boolean;
+  min?: number;
+  max?: number;
+  placeholder?: string;
+}
+const {
+  name,
+  label,
+  type = "text",
+  value = "",
+  required = false,
+  options = [],
+  hint,
+  rows = 4,
+  autocomplete,
+  full,
+  min,
+  max,
+  placeholder,
+} = Astro.props;
 const id = `f-${name}`;
-const opts = options.map((o) => (typeof o === 'string' ? { value: o, label: o } : o));
+const opts = options.map((o) =>
+  typeof o === "string" ? { value: o, label: o } : o,
+);
 ---
-<div class:list={['field', { full }]}>
-  {type === 'checkbox'
-    ? <div class="check"><input type="checkbox" id={id} name={name} checked={!!value} required={required} aria-describedby={hint ? `${id}-h` : undefined} /><label for={id} style="margin:0;font-weight:500">{label}</label></div>
-    : <>
-      <label for={id}>{label}{required && <span class="muted"> (wajib)</span>}</label>
-      {type === 'textarea' ? <textarea class="input" id={id} name={name} rows={rows} required={required} aria-describedby={hint ? `${id}-h` : undefined}>{value}</textarea>
-       : type === 'select' ? <select class="input" id={id} name={name} required={required}><option value="">Pilih…</option>{opts.map((o) => <option value={o.value} selected={String(value) === o.value}>{o.label}</option>)}</select>
-       : <input class="input" id={id} name={name} type={type} value={value ?? ''} required={required} autocomplete={autocomplete} min={min} max={max} aria-describedby={hint ? `${id}-h` : undefined} />}
-    </>}
-  {hint && <div class="hint" id={`${id}-h`}>{hint}</div>}
+
+<div class:list={["field", { full }]}>
+  {
+    type === "checkbox" ? (
+      <div class="check">
+        <>
+          <input
+            type="checkbox"
+            id={id}
+            name={name}
+            checked={!!value}
+            required={required}
+            aria-describedby={hint ? `${id}-h` : undefined}
+          />
+          <label for={id} style="margin:0;font-weight:500">
+            {label}
+          </label>
+        </>
+      </div>
+    ) : (
+      <>
+        <label for={id}>
+          {label}
+          {required && <span class="muted"> (wajib)</span>}
+        </label>
+        {type === "textarea" ? (
+          <textarea
+            class="input"
+            id={id}
+            name={name}
+            rows={rows}
+            required={required}
+            placeholder={placeholder}
+            aria-describedby={hint ? `${id}-h` : undefined}
+          >
+            {value}
+          </textarea>
+        ) : type === "select" ? (
+          <select class="input" id={id} name={name} required={required}>
+            <option value="">Pilih…</option>
+            {opts.map((o) => (
+              <option value={o.value} selected={String(value) === o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            class="input"
+            id={id}
+            name={name}
+            type={type as any}
+            value={value ?? ""}
+            required={required}
+            placeholder={placeholder}
+            autocomplete={autocomplete}
+            min={min}
+            max={max}
+            aria-describedby={hint ? `${id}-h` : undefined}
+          />
+        )}
+      </>
+    )
+  }
+  {
+    hint && (
+      <div class="hint" id={`${id}-h`}>
+        {hint}
+      </div>
+    )
+  }
 </div>
