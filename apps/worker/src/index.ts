@@ -15,7 +15,7 @@ let stopping = false;
 const timers: NodeJS.Timeout[] = [];
 
 async function heartbeat() {
-  try { writeFileSync(join(tmpdir(), 'worker.alive'), String(Date.now())); } catch {}
+  try { writeFileSync(join(tmpdir(), 'worker.alive'), String(Date.now())); } catch { }
   await db.from('worker_heartbeats').upsert({ worker_id: workerId, last_seen: new Date().toISOString(), stats });
 }
 
@@ -47,7 +47,7 @@ async function run() {
 
 // reconnect otomatis dengan backoff
 let delay = 1_000;
-for (;;) {
+for (; ;) {
   try { await run(); delay = 1_000; } catch (e) { log('error', 'koneksi gagal', { err: errMsg(e) }); }
   if (stopping) break;
   await new Promise((r) => setTimeout(r, delay)); delay = Math.min(delay * 2, 30_000);
