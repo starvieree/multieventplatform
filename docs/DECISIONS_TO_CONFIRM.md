@@ -58,4 +58,24 @@ STATUS KEPUTUSAN ARSITEKTUR & ATURAN BISNIS
     STATUS: TERKONFIRMASI.
     Menggunakan Astro server endpoint /api/v1/webhooks/midtrans dengan validasi
     SHA-512 signature, deduplikasi idempotent, dan audit logging.
+
+12. Desain Navigasi Versi Mobile (Bottom Nav vs Hamburger Drawer):
+    STATUS: TERKONFIRMASI.
+    Menggunakan model Hamburger Drawer di top navbar. Teks navigasi mempertahankan
+    label asli (Beranda, Tentang, Event, Partnership, Blog, Kontak) dan ditata rata kiri.
+    Profil pengguna diposisikan di bagian bawah drawer, dan tombol Logout di posisi paling bawah.
+    Floating Bottom Navigation ditiadakan permanen untuk efisiensi ruang pandang mobile.
+
+13. Konsep Antrean pada Trafik Tinggi (1.000 Peserta Bersamaan):
+    STATUS: TERKONFIRMASI.
+    Sistem menyerap ribuan request secara serentak ke RabbitMQ tanpa membebani frontend.
+    Alokasi slot sementara dijalankan secara paralel melalui transaksi atomik PostgreSQL
+    hingga batas kuota yang tersedia (bukan antrean buatan lambat 1-per-1). Peserta
+    yang mendapat slot reservasi dapat melanjutkan ke form dan pembayaran secara bersamaan.
+
+14. Penyimpanan Konten Blog:
+    STATUS: TERKONFIRMASI.
+    Artikel disimpan langsung di tabel `blogs` Supabase dengan skema lengkap (slug, excerpt,
+    content, category, author_name, reading_time). Telah tersedia 4 artikel seeded awal
+    yang dapat diakses di portal /blog.
 ```

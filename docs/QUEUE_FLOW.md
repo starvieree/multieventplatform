@@ -59,10 +59,19 @@ Retry untuk error sementara dengan batas.
 Dead-letter untuk payload invalid atau kegagalan permanen.
 Hindari requeue tanpa batas.
 
-CONCURRENCY
-Beberapa consumer dapat memproses bersamaan. RabbitMQ tidak menjamin FIFO global
-dalam semua konfigurasi. Database locking, atomic update, unique constraint,
-dan idempotency wajib. Uji dua peserta memperebutkan satu kuota.
+CONCURRENCY & SKALABILITAS ANTREAN (KASUS 1.000 PESERTA BERSAMAAN)
+1. Apakah peserta diproses satu per satu (single-lane) atau bisa bersamaan?
+   - Sistem TIDAK membatasi peserta secara kaku menjadi proses lambat 1-per-1 jika kuota masih tersedia.
+   - Penyerapan Antrean (Ingestion): Saat 1.000 peserta melakukan war tiket secara bersamaan, server web menerima request secara non-blocking dan memasukkannya ke antrean RabbitMQ (202 Accepted) tanpa membuat database crash.
+   - Pemrosesan Paralel (Concurrent Consumers): Pool worker mengambil antrean dengan worker concurrency terukur (misal 5-10 thread/consumer).
+   - Penguncian Baris Kilat (Row-Level Locking): Setiap consumer mengeksekusi PostgreSQL RPC `reserve_quota` dengan `SELECT FOR UPDATE` pada baris event dan ticket_category. Penguncian hanya berlangsung beberapa milidetik per reservasi.
+   - Alokasi Slot Sementara (Temporary Reservation Window):
+     * Jika kuota tersedia 1.000 slot: Ke-1.000 peserta dapat langsung dialokasikan ke slot sementara (`accepted`) secara simultan. Masing-masing mendapatkan waktu reservasi 30 menit dan dapat langsung mengisi form serta membayar di Midtrans secara bersamaan.
+     * Jika kuota hanya 100 slot: Sistem secara adil dan atomik memberikan 100 slot pertama kepada peserta yang berhasil lolos kunci kuota. Sisa 900 peserta akan masuk antrean tunggu atau berstatus `QUOTA_FULL`.
+     * Jika ada peserta dari 100 slot tadi yang membatalkan atau tidak membayar hingga batas 30 menit berakhir (kedaluwarsa), kuota tersebut seketika terbuka kembali ke publik tanpa delay, dan peserta lain dapat langsung mengambil slot yang terlepas tersebut.
+2. Keandalan:
+   - Database locking, atomic update, unique constraint, dan idempotency wajib aktif agar tidak terjadi overselling.
+   - Uji batas: simulasi ribuan request paralel memperebutkan kuota terakhir.
 
 EXPIRY & REAL-TIME RE-REGISTRATION
 - Reservation memiliki expires_at.

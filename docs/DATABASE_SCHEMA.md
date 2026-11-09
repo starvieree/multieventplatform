@@ -80,7 +80,8 @@ checked_in_at, metadata JSONB.
 
 17. blogs
 id, title, slug unique, excerpt, content, thumbnail_path, category, author_id,
-status, published_at, meta_title, meta_description, timestamps.
+author_name, reading_time, status, published_at, meta_title, meta_description, timestamps.
+Status draft/published/archived. Menyimpan konten wawasan, panduan tiket, dan cerita event.
 
 18. partnerships
 id, organization_name, contact_name, email, phone, organization_type, website,

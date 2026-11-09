@@ -101,6 +101,22 @@ URUTAN IMPLEMENTASI
 6. Dashboard/admin: peserta, transaksi, queue, audit, reports.
 7. Quality: security, RLS, concurrency, end-to-end, staging, deployment.
 
+PROGRESS IMPLEMENTASI & FITUR UI TERKINI
+- Navbar & Navigasi Mobile (Navbar.astro):
+  * Sticky header modern terinspirasi dari UX infokonser.id (backdrop-blur 16px).
+  * Desktop: Menu utama di tengah (Beranda, Tentang, Event dropdown, Partnership, Blog, Kontak) dan action bar di kanan (Pesanan badge, Popover notifikasi, Profil dropdown).
+  * Mobile: Hamburger drawer menu dengan menu utama rata kiri, profil pengguna di bagian bawah, dan tombol logout di paling bawah. Floating bottom navigation telah ditiadakan sepenuhnya.
+- Portal Blog & Cerita (/blog):
+  * Layout interaktif dengan kartu utama (lead highlight) dan grid responsif.
+  * Fitur pencarian kata kunci dan filter pill kategori.
+  * 4 artikel awal telah di-seed ke tabel `blogs` database Supabase.
+- Layanan Kontak & Form Bantuan (/kontak):
+  * Form pesan type-safe dengan dukungan placeholder pada komponen FormField.astro.
+  * Integrasi FAQ dan informasi kontak resmi.
+- Portal Peserta & Tiket (/pesanan, /tiket-saya):
+  * Pelacakan pesanan aktif dengan countdown waktu reservasi.
+  * Wallet tiket digital dengan QR Code SVG dinamis.
+
 METRIK DEVELOPER 1
 Throughput, queue wait, processing time, success/failure, retry, duplicate,
 dead-letter, overselling count, reservation correctness.

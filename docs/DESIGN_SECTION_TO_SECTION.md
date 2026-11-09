@@ -11,12 +11,28 @@ Status ditampilkan dengan teks dan badge, bukan warna saja.
 
 A. WEBSITE PUBLIK
 
-1. NAVBAR
-Urutan: Logo | Beranda | Tentang | Event v | Partnership | Blog | Kontak |
-Register | Login.
-Logo menuju /. Event menuju /events; dropdown opsional Semua, Mendatang, Gratis,
-Berbayar. Register tombol primer, Login sekunder. Mobile memakai drawer/hamburger.
-Navbar boleh sticky. Semua link harus konsisten.
+1. NAVBAR (DESKTOP & MOBILE DRAWER)
+- Desain terinspirasi dari standar modern platform tiket (adaptasi bersih seperti infokonser.id):
+  Sticky navbar dengan backdrop-filter blur (16px) dan border-bottom halus.
+- Desktop View:
+  * Kiri: Logo brand Platform Event menuju /.
+  * Tengah: Urutan menu utama: Beranda | Tentang | Event v (dropdown: Semua, Mendatang, Gratis, Berbayar) | Partnership | Blog | Kontak.
+  * Kanan:
+    - Jika login: Ikon Pesanan & Transaksi aktif (dengan badge count pending), Popover Notifikasi real-time (dengan unread count badge), Dropdown Avatar Akun (Tiket Saya, Pesanan & Transaksi, Pengaturan Akun, Panel Admin jika role admin, Keluar).
+    - Jika belum login: Tombol Masuk (sekunder) dan Daftar (primer).
+- Mobile View (Layar <= 900px):
+  * Top Bar: Logo brand di kiri, Tombol Pintas Pesanan Aktif (ikon tas dengan badge jika login) dan Tombol Hamburger (#nav-toggle) di kanan.
+  * Floating bottom navigation ditiadakan sepenuhnya untuk menjaga ruang layar vertikal tetap luas dan bersih.
+  * Mobile Drawer Menu (ketika tombol hamburger diklik):
+    - Muncul sebagai overlay dropdown halus langsung di bawah sticky navbar (top: 100%) dengan animasi slide down dan backdrop blur.
+    - Bagian Atas Drawer: Seluruh link menu utama (Beranda, Tentang, Event v, Partnership, Blog, Kontak) diposisikan RATA KIRI (text-align: left; justify-content: flex-start;).
+    - Submenu dropdown kategori event (Semua, Mendatang, Gratis, Berbayar) memiliki indentasi garis vertikal kiri.
+    - Pembatas: Garis pemisah halus (border-top).
+    - Bagian Bawah Drawer:
+      * Jika login: Kartu Profil Pengguna proporsional (Avatar inisial, Nama Lengkap, Email), diikuti daftar tautan akun rata kiri dengan ikon rapi (Tiket Saya, Pesanan & Transaksi, Notifikasi, Pengaturan Akun, Panel Admin jika admin).
+      * Paling Bawah: Tombol Keluar (Logout) dengan gaya danger subtle yang jelas.
+      * Jika belum login: Tombol Daftar (primer) dan Masuk (sekunder) di bagian bawah drawer.
+    - Interaksi: Drawer tertutup otomatis saat link navigasi diklik, saat mengklik di luar area navbar, atau saat menekan tombol Escape keyboard.
 
 2. BERANDA (/)
 Section 1 Hero:
@@ -120,28 +136,29 @@ lampiran opsional, persetujuan privasi.
 Section 7 FAQ dan kontak.
 
 7. BLOG (/blog)
-Section 1 hero.
-Section 2 artikel unggulan.
-Section 3 pencarian dan filter kategori.
-Section 4 grid artikel: thumbnail, kategori, judul, ringkasan, tanggal.
-Section 5 pagination.
+Section 1 Hero: Headline artikel, wawasan event, tips war tiket, dan tren industri.
+Section 2 Artikel Utama (Lead Highlight): Tampilan kartu besar interaktif untuk artikel teratas dengan badge kategori, cover responsif, estimasi waktu baca, excerpt, dan metadata penulis.
+Section 3 Pencarian & Filter Kategori: Input pencarian kata kunci dan filter pill kategori aktif (Tips & Panduan, Teknologi & AI, Penyelenggara Event, Workshop & Bisnis).
+Section 4 Grid Artikel: Kartu artikel modern dengan thumbnail proporsional, tag kategori warna tematik, judul, ringkasan, tanggal rilis, dan estimasi menit membaca.
+Section 5 Pagination: Paginasi numerik yang mempertahankan query pencarian dan filter kategori.
+Penyimpanan: Data artikel disimpan dan dimuat langsung dari tabel `blogs` Supabase (telah tersedia 4 artikel seeded bertema tiket, AI, promotor, dan workshop).
 
 8. DETAIL BLOG (/blog/[slug])
 Section 1 breadcrumb.
-Section 2 judul, kategori, penulis, tanggal, cover.
-Section 3 isi dengan heading terstruktur.
+Section 2 judul, kategori, penulis, tanggal, estimasi membaca, cover.
+Section 3 isi dengan heading terstruktur, callout note, dan format tipografi bersih.
 Section 4 media pendukung.
-Section 5 artikel terkait.
-Section 6 CTA katalog.
+Section 5 artikel terkait dalam kategori yang sama.
+Section 6 CTA katalog event.
 Section 7 metadata SEO dan Article schema.
 
 9. KONTAK (/kontak)
-Section 1 hero.
-Section 2 email/telepon/alamat resmi.
-Section 3 form nama, email, subjek, pesan, consent.
-Section 4 FAQ.
-Section 5 CTA partnership.
-Tampilkan feedback terkirim/gagal dan proteksi spam dasar.
+Section 1 Hero: Informasi bantuan dan layanan pelanggan.
+Section 2 Kontak Resmi: Alamat email, hotline WhatsApp, jam layanan kerja, lokasi operasional.
+Section 3 Form Pesan Pengguna: Input Nama Lengkap, Alamat Email, Subjek, dan Pesan Pertanyaan/Kendala. Komponen FormField dilengkapi placeholder proporsional dan penanganan data opsional yang tahan error (type-safe).
+Section 4 FAQ Pertanyaan Umum: Accordion tanya-jawab seputar pemesanan tiket, sistem antrean, dan konfirmasi otomatis.
+Section 5 CTA Pengajuan Partnership.
+Feedback status pengiriman pesan sukses/gagal ditampilkan secara dinamis.
 
 10. LOGIN (/login)
 Logo, judul, email, password, toggle password, tombol login, lupa password,

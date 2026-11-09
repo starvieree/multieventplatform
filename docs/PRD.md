@@ -37,7 +37,12 @@ Super Admin: mengelola admin, permission, konfigurasi, dan integrasi.
 
 5. FITUR
 Publik:
-- Beranda, Tentang, Event, Detail Event, Partnership, Blog, Detail Blog, Kontak.
+- Header Navigasi Adaptif:
+  * Desktop: Sticky navbar dengan logo, link menu utama (Beranda, Tentang, Event dropdown, Partnership, Blog, Kontak), shortcut pesanan & popover notifikasi, dan menu profil / tombol autentikasi.
+  * Mobile: Navbar atas dengan logo, shortcut pesanan aktif, dan tombol hamburger drawer menu. Seluruh menu utama tertata rata kiri, bagian profil di bagian bawah drawer, dan tombol logout di posisi paling bawah. Floating bottom navigation ditiadakan demi kenyamanan visual dan area pandang layar sentuh yang lebih luas.
+- Beranda, Tentang, Event, Detail Event, Partnership.
+- Blog & Wawasan: Artikel seputar war tiket, AI, promotor, dan panduan event lengkap dengan kartu utama (lead article), grid artikel responsif, pencarian, dan filter kategori berbasis database Supabase.
+- Kontak: Informasi dan formulir pengiriman pertanyaan/bantuan dengan FormField placeholder type-safe.
 - Login, Register, Forgot Password, Reset Password.
 - Privacy Policy dan Terms.
 
@@ -46,9 +51,11 @@ Peserta:
 - Tiket Saya (/tiket-saya, /tiket-saya/:id) lengkap dengan QR Code e-ticket.
 - Profil (/profil) dan Keamanan Akun (/profil/security).
 - Notifikasi (/notifikasi).
-- Alur Pendaftaran: Antrean (/registration/queue/:id), Formulir Dinamis
-  (/registration/:id/form), Pembayaran Snap (/registration/:id/payment),
-  dan Status Pendaftaran (/registration/:id/status).
+- Alur Pendaftaran & Antrean:
+  * Antrean (/registration/queue/:id): Menampung lonjakan ribuan request serentak ke RabbitMQ, mengalokasikan slot sementara (temporary reservation) secara paralel hingga batas kuota yang tersedia.
+  * Formulir Dinamis (/registration/:id/form): Pengisian data peserta dengan batas waktu reservasi 30 menit.
+  * Pembayaran Snap (/registration/:id/payment): Integrasi Midtrans Snap otomatis tanpa unggah bukti transfer manual.
+  * Status Pendaftaran (/registration/:id/status): Visualisasi real-time status transaksi dan tiket terbit.
 
 Admin:
 - Dashboard statistik.
