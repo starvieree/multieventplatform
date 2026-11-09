@@ -1,6 +1,7 @@
 import amqp, { type ChannelModel, type ConfirmChannel } from 'amqplib';
 import { writeFileSync } from 'node:fs';
-import { hostname } from 'node:os';
+import { hostname, tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { db, config } from './utils/supabase.js';
 import { assertTopology } from './messaging/topology.js';
 import { startRegistrationConsumer } from './consumers/registration.js';
@@ -14,7 +15,7 @@ let stopping = false;
 const timers: NodeJS.Timeout[] = [];
 
 async function heartbeat() {
-  writeFileSync('/tmp/worker.alive', String(Date.now()));
+  try { writeFileSync(join(tmpdir(), 'worker.alive'), String(Date.now())); } catch {}
   await db.from('worker_heartbeats').upsert({ worker_id: workerId, last_seen: new Date().toISOString(), stats });
 }
 
