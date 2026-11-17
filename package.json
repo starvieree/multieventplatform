@@ -1,7 +1,14 @@
-{ "name": "multi-event-platform", "private": true, "workspaces": ["apps/*"],
+{
+  "name": "multi-event-platform",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
+    "dev": "npm run dev:web",
     "dev:web": "npm run dev -w apps/web",
     "dev:worker": "npm run dev -w apps/worker",
+    "tunnel": "npm run tunnel -w apps/web",
     "build": "npm run build -w apps/web && npm run build -w apps/worker",
     "build:worker": "npm run build -w apps/worker",
     "build:web": "npm run build -w apps/web",
@@ -11,4 +18,7 @@
     "test": "npm run test -w apps/web",
     "typecheck": "npm run check -w apps/web && npm run typecheck -w apps/worker"
   },
-  "engines": { "node": ">=20" } }
+  "engines": {
+    "node": ">=20"
+  }
+}

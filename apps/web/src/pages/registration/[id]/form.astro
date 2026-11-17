@@ -7,7 +7,7 @@ import { fmtDate, rupiah } from '../../../lib/utils/format';
 const sb = Astro.locals.supabase;
 const { data: r } = await sb
   .from('registrations')
-  .select('id,registration_status,total_amount,quantity,event_id,event:events(title,slug),ticket:ticket_categories(name),reservations:quota_reservations(status,expires_at)')
+  .select('id,user_id,registration_status,total_amount,quantity,event_id,event:events(title,slug),ticket:ticket_categories(name),reservations:quota_reservations(status,expires_at)')
   .eq('id', Astro.params.id!)
   .maybeSingle();
 
@@ -15,16 +15,28 @@ if (!r) return Astro.rewrite('/404');
 if (!['draft', 'awaiting_payment'].includes(r.registration_status)) return Astro.redirect(`/registration/${r.id}/status`);
 
 const res = (r as any).reservations?.find((x: any) => x.status === 'reserved' && +new Date(x.expires_at) > Date.now());
-const [{ data: fields }, { data: answers }] = await Promise.all([
+const [{ data: fields }, { data: answers }, { data: profile }] = await Promise.all([
   sb.from('event_form_fields').select('*').eq('event_id', r.event_id).eq('is_active', true).order('sort_order'),
   sb.from('registration_answers').select('field_key,answer').eq('registration_id', r.id),
+  sb.from('profiles').select('full_name,phone').eq('id', r.user_id).maybeSingle(),
 ]);
 
 const prev = Object.fromEntries((answers ?? []).map((a) => [a.field_key, a.answer]));
 const ev = (r as any).event;
+
+const jerseyOptions = [
+  { value: '', label: '-- Pilih Ukuran Jersey / Baju --' },
+  { value: 'XS', label: 'XS (Extra Small - 44 x 64 cm)' },
+  { value: 'S', label: 'S (Small - 47 x 67 cm)' },
+  { value: 'M', label: 'M (Medium - 50 x 70 cm)' },
+  { value: 'L', label: 'L (Large - 53 x 73 cm)' },
+  { value: 'XL', label: 'XL (Extra Large - 56 x 75 cm)' },
+  { value: 'XXL', label: 'XXL (Double XL - 59 x 77 cm)' },
+  { value: '3XL', label: '3XL (Triple XL - 62 x 79 cm)' },
+];
 ---
 
-<PublicLayout title="Formulir Pendaftaran Event" noindex>
+<PublicLayout title="Formulir Pendaftaran Peserta" noindex>
   <section class="wrap" style="max-width: 680px; padding: 40px 0 80px;">
     {!res ? (
       <StateBox
@@ -58,6 +70,85 @@ const ev = (r as any).event;
         </div>
 
         <form class="form card" id="reg-form" data-id={r.id} style="padding: 32px; border-radius: 20px; box-shadow: 0 16px 36px -12px rgba(15, 23, 42, 0.08);">
+          <!-- Bagian Data Diri Utama Peserta -->
+          <div style="margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--dp-color-rule);">
+            <h3 style="font-size: 1.15rem; margin-bottom: 4px; color: var(--dp-color-ink);">
+              1. Identitas & Kontak Peserta
+            </h3>
+            <p class="muted small" style="margin: 0;">
+              Data diri resmi peserta untuk pencetakan e-tiket, registrasi ulang, dan sertifikat.
+            </p>
+          </div>
+
+          <FormField
+            name="full_name"
+            label="Nama Lengkap (Sesuai KTP/ID)"
+            type="text"
+            value={prev['full_name'] || profile?.full_name || ''}
+            required
+            placeholder="Contoh: Budi Santoso"
+          />
+
+          <FormField
+            name="phone"
+            label="Nomor WhatsApp / HP"
+            type="tel"
+            value={prev['phone'] || profile?.phone || ''}
+            required
+            placeholder="Contoh: 081234567890"
+            hint="Nomor aktif untuk pengiriman notifikasi pendaftaran dan tiket"
+          />
+
+          <FormField
+            name="jersey_size"
+            label="Ukuran Baju / Size Jersey"
+            type="select"
+            value={prev['jersey_size'] || ''}
+            required
+            options={jerseyOptions}
+            hint="Pilih ukuran jersey yang sesuai. Periksa panduan ukuran sebelum memilih."
+          />
+
+          <div style="margin: 24px 0 16px; padding-top: 16px; border-top: 1px dashed var(--dp-color-rule);">
+            <h3 style="font-size: 1.15rem; margin-bottom: 4px; color: var(--dp-color-ink);">
+              2. Kontak Darurat (Emergency Contact)
+            </h3>
+            <p class="muted small" style="margin: 0;">
+              Wajib diisi untuk keselamatan medis dan kondisi darurat selama kegiatan berlangsung.
+            </p>
+          </div>
+
+          <FormField
+            name="emergency_name"
+            label="Nama Kontak Darurat"
+            type="text"
+            value={prev['emergency_name'] || ''}
+            required
+            placeholder="Contoh: Siti Rahma (Keluarga / Kerabat)"
+          />
+
+          <FormField
+            name="emergency_phone"
+            label="Nomor Telepon Kontak Darurat"
+            type="tel"
+            value={prev['emergency_phone'] || ''}
+            required
+            placeholder="Contoh: 081987654321"
+            hint="Nomor keluarga atau orang terdekat yang bisa dihubungi saat darurat"
+          />
+
+          <!-- Bagian Form Tambahan Kustom Jika Ada -->
+          {(fields ?? []).length > 0 && (
+            <div style="margin: 24px 0 16px; padding-top: 16px; border-top: 1px dashed var(--dp-color-rule);">
+              <h3 style="font-size: 1.15rem; margin-bottom: 4px; color: var(--dp-color-ink);">
+                3. Informasi Tambahan Event
+              </h3>
+              <p class="muted small" style="margin: 0;">
+                Data tambahan yang dibutuhkan khusus untuk event ini.
+              </p>
+            </div>
+          )}
+
           {(fields ?? []).map((f) => (
             <FormField
               name={f.field_key}
@@ -79,17 +170,9 @@ const ev = (r as any).event;
             />
           ))}
 
-          {(fields ?? []).length === 0 && (
-            <div style="text-align: center; padding: 20px 0;">
-              <p class="muted" style="margin: 0;">
-                Event ini tidak memerlukan formulir tambahan. Silakan klik tombol di bawah untuk melanjutkan.
-              </p>
-            </div>
-          )}
-
           <div id="reg-msg" class="alert alert--bad" role="alert" hidden style="margin-top: 14px;"></div>
 
-          <div style="margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--dp-color-rule);">
+          <div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--dp-color-rule);">
             <button class="btn" type="submit" id="reg-btn" style="width: 100%; font-size: 16px; padding: 13px; font-weight: 700;">
               {r.total_amount > 0 ? 'Simpan & Lanjut ke Pembayaran →' : 'Selesaikan Pendaftaran Gratis →'}
             </button>

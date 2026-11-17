@@ -19,8 +19,16 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   ctx.locals.user = null; ctx.locals.roles = []; ctx.locals.permissions = [];
   ctx.locals.supabase = createSupabase(ctx.request, ctx.cookies);
 
-  // CSRF untuk API mutating: Origin / Referer harus berasal dari host yang sama (webhook Midtrans dikecualikan).
-  if (pathname.startsWith('/api/') && MUTATING.has(ctx.request.method) && pathname !== '/api/v1/webhooks/midtrans') {
+  // CSRF untuk API mutating: Origin / Referer harus berasal dari host yang sama.
+  // Webhook eksternal (QRISGate, Midtrans, Ingesti Mutasi) dikecualikan.
+  const isExternalWebhook =
+    pathname.startsWith('/api/v1/webhooks/') ||
+  pathname.startsWith('/api/webhooks/') ||
+    pathname === '/api/webhook' ||
+    pathname.startsWith('/api/v1/mutations/') ||
+    pathname.startsWith('/api/mutations/');
+
+  if (pathname.startsWith('/api/') && MUTATING.has(ctx.request.method) && !isExternalWebhook) {
     if (!isAllowedOrigin(ctx.request, ctx.url)) {
       return json(403, 'forbidden_origin', 'Permintaan ditolak.', ctx.locals.requestId);
     }
@@ -78,7 +86,7 @@ function isAllowedOrigin(req: Request, url: URL): boolean {
   const originHeader = req.headers.get('origin');
   const referer = req.headers.get('referer');
   const source = originHeader || referer;
-  if (!source) return false;
+  if (!source) return !PROD;
 
   try {
     const sourceUrl = new URL(source);
@@ -91,13 +99,24 @@ function isAllowedOrigin(req: Request, url: URL): boolean {
     if (sourceHost === expectedHost) return true;
     if (sourceHost === url.hostname.toLowerCase()) return true;
 
+    // Izinkan tunnel domains (Cloudflare Tunnel, localtunnel, ngrok)
+    if (
+      sourceHost.endsWith('.trycloudflare.com') ||
+      sourceHost.endsWith('.localtunnel.me') ||
+      sourceHost.endsWith('.ngrok-free.app') ||
+      sourceHost === 'localhost' ||
+      sourceHost === '127.0.0.1'
+    ) {
+      return true;
+    }
+
     // Cocok dengan PUBLIC_SITE_URL jika didefinisikan
     if (import.meta.env.PUBLIC_SITE_URL) {
       const siteUrl = new URL(import.meta.env.PUBLIC_SITE_URL);
       if (sourceHost === siteUrl.hostname.toLowerCase()) return true;
     }
 
-    return false;
+    return !PROD;
   } catch {
     return false;
   }

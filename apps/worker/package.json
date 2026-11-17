@@ -1,14 +1,23 @@
 {
-  "name": "@mep/worker", "version": "1.0.0", "private": true, "type": "module",
+  "name": "@mep/worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts", "build": "tsc -p .", "start": "node dist/src/index.js",
-    "typecheck": "tsc --noEmit -p .", "test:concurrency": "tsx scripts/concurrency-test.ts"
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p .",
+    "start": "node dist/src/index.js",
+    "typecheck": "tsc --noEmit -p .",
+    "test:concurrency": "tsx scripts/concurrency-test.ts"
   },
   "dependencies": {
+    "@astrojs/vercel": "11.0.22",
     "@supabase/supabase-js": "^2.45.0",
     "amqplib": "^0.10.4",
+    "astro": "7.4.12",
     "typescript": "^5.6.0",
-    "zod": "^3.23.8"
+    "vitest": "5.1.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/amqplib": "^0.10.5",
