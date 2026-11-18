@@ -228,6 +228,19 @@ const jsonLd = {
       ]}
     />
   </div>
+
+  {Astro.url.searchParams.get('expired') && (
+    <div class="wrap" style="margin-top: 16px; margin-bottom: -4px;">
+      <div style="background: #fef2f2; border: 1px solid #fca5a5; border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; color: #991b1b; font-size: 14px; box-shadow: 0 2px 8px rgba(220, 38, 38, 0.06);">
+        <span style="font-size: 22px;">⏱️</span>
+        <div>
+          <strong style="display: block; margin-bottom: 2px;">Waktu Pembayaran Sebelumnya Telah Habis</strong>
+          Sesi pembayaran QRIS Anda telah kadaluarsa dan kuota tiket telah dilepas. Anda dapat memilih tiket dan melakukan pemesanan ulang di bawah ini jika kuota masih tersedia.
+        </div>
+      </div>
+    </div>
+  )}
+
   <section class="section" style="padding-top:20px">
     <div
       class="wrap grid"

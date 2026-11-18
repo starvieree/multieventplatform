@@ -989,12 +989,12 @@ BEGIN
   -- Jika event gratis (Rp 0), langsung konfirmasi
   IF reg.total_amount = 0 THEN
     UPDATE quota_reservations SET status = 'confirmed', confirmed_at = now() WHERE id = res.id;
-    UPDATE registrations SET registration_status = 'confirmed', payment_status = 'paid', status = 'paid', confirmed_at = now() WHERE id = reg.id;
+    UPDATE registrations SET registration_status = 'confirmed', payment_status = 'paid', confirmed_at = now(), updated_at = now() WHERE id = reg.id;
     PERFORM _issue_tickets(reg.id);
     RETURN jsonb_build_object('next', 'status');
   END IF;
 
-  UPDATE registrations SET registration_status = 'awaiting_payment' WHERE id = reg.id;
+  UPDATE registrations SET registration_status = 'awaiting_payment', updated_at = now() WHERE id = reg.id;
   RETURN jsonb_build_object('next', 'payment');
 END $$;
 
@@ -1020,23 +1020,23 @@ BEGIN
     SELECT * INTO tc FROM ticket_categories WHERE id = reg.ticket_category_id;
     v_amount := tc.price * reg.quantity;
   ELSE
-    v_amount := COALESCE(reg.total_amount, reg.amount, 0);
+    v_amount := COALESCE(reg.total_amount, 0);
   END IF;
 
   SELECT * INTO t FROM transactions WHERE registration_id = reg.id AND transaction_status = 'pending' FOR UPDATE;
   IF FOUND THEN
-    IF t.snap_token IS NOT NULL OR t.qris_string IS NOT NULL THEN
+    IF t.snap_token IS NOT NULL OR t.raw_status IS NOT NULL THEN
       RETURN jsonb_build_object('order_id', t.order_id, 'amount', t.gross_amount, 'snap_token', t.snap_token, 'redirect_url', t.snap_redirect_url, 'expires_at', res.expires_at, 'reused', true);
     END IF;
-    UPDATE transactions SET transaction_status = 'cancelled', raw_status = 'superseded_no_token' WHERE id = t.id;
+    UPDATE transactions SET transaction_status = 'cancelled', raw_status = 'superseded_no_token', updated_at = now() WHERE id = t.id;
   END IF;
 
   v_order := 'EVT-' || upper(substr(replace(reg.id::text, '-', ''), 1, 10)) || '-' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 8));
   
-  INSERT INTO transactions (registration_id, order_id, base_amount, gross_amount, expiry_time) 
-  VALUES (reg.id, v_order, v_amount, v_amount, res.expires_at);
+  INSERT INTO transactions (registration_id, order_id, gross_amount, expiry_time) 
+  VALUES (reg.id, v_order, v_amount, res.expires_at);
   
-  UPDATE registrations SET order_id = v_order, payment_status = 'pending', status = 'pending', total_amount = v_amount WHERE id = reg.id;
+  UPDATE registrations SET payment_status = 'pending', total_amount = v_amount, updated_at = now() WHERE id = reg.id;
   
   RETURN jsonb_build_object('order_id', v_order, 'amount', v_amount, 'expires_at', res.expires_at, 'reused', false);
 END $$;
@@ -1096,70 +1096,106 @@ RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   t transactions;
   reg registrations;
+  res quota_reservations;
   v_target_amt NUMERIC := round(p_amount);
+  v_is_late BOOLEAN := false;
 BEGIN
-  -- Cari transaksi pending paling akhir yang cocok persis dengan nominal (termasuk kode unik)
+  -- Cari transaksi pending atau expired yang cocok dengan nominal (utamakan pending)
   SELECT * INTO t 
   FROM transactions 
   WHERE round(gross_amount) = v_target_amt 
-    AND transaction_status = 'pending'
-    AND expiry_time > now()
-  ORDER BY created_at DESC 
+    AND transaction_status IN ('pending', 'expired')
+  ORDER BY CASE WHEN transaction_status = 'pending' THEN 1 ELSE 2 END, created_at DESC 
   LIMIT 1 
   FOR UPDATE;
 
   IF NOT FOUND THEN
-    -- Fallback: cari di tabel registrations jika belum ada transaksi di tabel transactions
-    SELECT * INTO reg 
-    FROM registrations 
-    WHERE round(COALESCE(total_amount, amount)) = v_target_amt 
-      AND (payment_status = 'pending' OR status = 'pending')
-      AND created_at > now() - interval '15 minutes'
-    ORDER BY created_at DESC 
-    LIMIT 1 
-    FOR UPDATE;
+    RETURN jsonb_build_object('success', false, 'message', 'Tidak ditemukan transaksi yang cocok dengan nominal tersebut');
+  END IF;
 
-    IF NOT FOUND THEN
-      RETURN jsonb_build_object('success', false, 'message', 'Tidak ditemukan transaksi pending dengan nominal tersebut');
+  SELECT * INTO reg FROM registrations WHERE id = t.registration_id FOR UPDATE;
+  SELECT * INTO res FROM quota_reservations WHERE registration_id = reg.id ORDER BY reserved_at DESC LIMIT 1 FOR UPDATE;
+
+  -- Validasi apakah pembayaran mutasi sudah kadaluarsa
+  v_is_late := (
+    (t.expiry_time IS NOT NULL AND t.expiry_time < now())
+    OR (res.id IS NOT NULL AND res.expires_at IS NOT NULL AND res.expires_at < now())
+    OR (res.id IS NOT NULL AND res.status IN ('expired', 'released'))
+    OR (reg.registration_status IN ('expired', 'cancelled'))
+    OR (t.transaction_status = 'expired')
+  );
+
+  IF v_is_late THEN
+    -- Kasus Pembayaran Telat: Catat uang masuk tapi JANGAN terbitkan tiket
+    UPDATE transactions 
+    SET transaction_status = 'paid', 
+        paid_at = now(),
+        payment_type = COALESCE(payment_type, p_source),
+        provider_transaction_id = COALESCE(p_external_ref, provider_transaction_id),
+        raw_status = 'mutation_late_expired',
+        updated_at = now()
+    WHERE id = t.id;
+
+    IF res.id IS NOT NULL AND res.status = 'reserved' THEN
+      UPDATE quota_reservations 
+      SET status = 'expired', released_at = now(), release_reason = 'late_payment_expired' 
+      WHERE id = res.id;
     END IF;
 
     UPDATE registrations 
-    SET payment_status = 'paid', status = 'paid', registration_status = 'confirmed', confirmed_at = now(),
-        payment_type = COALESCE(payment_type, p_source),
-        raw_response = jsonb_build_object('mutation_source', p_source, 'raw_text', p_raw_text, 'amount', p_amount, 'confirmed_at', now())
+    SET payment_status = 'paid', 
+        registration_status = 'cancelled',
+        admin_note = 'Pembayaran QRIS mutasi diterima SETELAH batas waktu kadaluarsa (Telat bayar). Tiket TIDAK diterbitkan. Perlu refund manual ke peserta.',
+        updated_at = now()
     WHERE id = reg.id;
 
-    PERFORM _issue_tickets(reg.id);
-    RETURN jsonb_build_object('success', true, 'order_id', reg.order_id, 'registration_id', reg.id, 'amount', v_target_amt);
+    INSERT INTO activity_logs (actor_type, action, resource_type, resource_id, reason, after_data)
+    VALUES ('system', 'late_payment_no_ticket', 'transaction', t.id::text, p_source, jsonb_build_object('amount', v_target_amt, 'order_id', t.order_id));
+
+    IF reg.user_id IS NOT NULL THEN
+      INSERT INTO notifications (user_id, title, body, type, related_type, related_id) 
+      VALUES (
+        reg.user_id, 
+        'Pembayaran Melebihi Batas Waktu', 
+        'Pembayaran sebesar Rp ' || v_target_amt::text || ' berhasil diterima, namun sesi pembayaran pendaftaran Anda telah kadaluarsa sehingga tiket tidak dapat diterbitkan. Silakan hubungi admin panitia untuk proses pengembalian dana (refund).', 
+        'late_payment_expired', 
+        'registration', 
+        reg.id
+      );
+    END IF;
+
+    RETURN jsonb_build_object('success', true, 'late', true, 'order_id', t.order_id, 'registration_id', reg.id, 'amount', v_target_amt, 'message', 'Pembayaran diterima setelah batas waktu kadaluarsa. Tiket tidak diterbitkan. Perlu refund.');
   END IF;
 
-  -- Update transaksi menjadi paid
+  -- Kasus Tepat Waktu: Terbitkan tiket
   UPDATE transactions 
-  SET transaction_status = 'paid', paid_at = now(),
-      external_reference = COALESCE(p_external_ref, external_reference),
-      payment_type = COALESCE(p_source, payment_type),
-      raw_notification = jsonb_build_object('source', p_source, 'text', p_raw_text, 'received_at', now())
+  SET transaction_status = 'paid', 
+      paid_at = now(),
+      payment_type = COALESCE(payment_type, p_source),
+      provider_transaction_id = COALESCE(p_external_ref, provider_transaction_id),
+      raw_status = 'mutation_settled',
+      updated_at = now()
   WHERE id = t.id;
 
-  -- Update registrasi & reservasi kuota
-  SELECT * INTO reg FROM registrations WHERE id = t.registration_id FOR UPDATE;
-  
-  UPDATE quota_reservations 
-  SET status = 'confirmed', confirmed_at = now() 
-  WHERE registration_id = reg.id AND status = 'reserved';
+  IF res.id IS NOT NULL THEN
+    UPDATE quota_reservations 
+    SET status = 'confirmed', confirmed_at = now() 
+    WHERE id = res.id;
+  END IF;
 
   UPDATE registrations 
-  SET payment_status = 'paid', status = 'paid', registration_status = 'confirmed', confirmed_at = now(),
-      payment_type = COALESCE(payment_type, p_source)
+  SET payment_status = 'paid', 
+      registration_status = 'confirmed', 
+      confirmed_at = now(),
+      updated_at = now()
   WHERE id = reg.id;
 
   PERFORM _issue_tickets(reg.id);
 
-  -- Catat ke log aktivitas
   INSERT INTO activity_logs (actor_type, action, resource_type, resource_id, reason, after_data)
   VALUES ('system', 'qris_mutation_settled', 'transaction', t.id::text, p_source, jsonb_build_object('amount', v_target_amt, 'order_id', t.order_id));
 
-  RETURN jsonb_build_object('success', true, 'order_id', t.order_id, 'registration_id', reg.id, 'amount', v_target_amt);
+  RETURN jsonb_build_object('success', true, 'late', false, 'order_id', t.order_id, 'registration_id', reg.id, 'amount', v_target_amt, 'message', 'Pembayaran QRIS berhasil dan tiket telah diterbitkan.');
 END $$;
 
 -- Verifikasi Manual Kasir / Admin (Dari Layar Shopee Partner / Bukti Transfer)
@@ -1174,32 +1210,25 @@ DECLARE
   reg registrations;
   t transactions;
 BEGIN
-  SELECT * INTO reg FROM registrations WHERE order_id = p_order_id FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'ORDER_NOT_FOUND'; END IF;
-  IF reg.payment_status = 'paid' OR reg.status = 'paid' THEN RAISE EXCEPTION 'ORDER_ALREADY_PAID'; END IF;
-
   SELECT * INTO t FROM transactions WHERE order_id = p_order_id FOR UPDATE;
-  IF FOUND THEN
-    UPDATE transactions 
-    SET transaction_status = 'paid', paid_at = now(),
-        verified_by = p_actor, verified_at = now(),
-        external_reference = COALESCE(p_external_ref, external_reference)
-    WHERE id = t.id;
-  END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'ORDER_NOT_FOUND'; END IF;
+
+  SELECT * INTO reg FROM registrations WHERE id = t.registration_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'REGISTRATION_NOT_FOUND'; END IF;
+  IF reg.payment_status = 'paid' THEN RAISE EXCEPTION 'ORDER_ALREADY_PAID'; END IF;
+
+  UPDATE transactions 
+  SET transaction_status = 'paid', paid_at = now(), updated_at = now()
+  WHERE id = t.id;
 
   UPDATE quota_reservations 
   SET status = 'confirmed', confirmed_at = now() 
   WHERE registration_id = reg.id AND status = 'reserved';
 
   UPDATE registrations 
-  SET payment_status = 'paid', status = 'paid', registration_status = 'confirmed', confirmed_at = now(),
-      admin_note = p_notes
+  SET payment_status = 'paid', registration_status = 'confirmed', confirmed_at = now(),
+      admin_note = p_notes, updated_at = now()
   WHERE id = reg.id;
-
-  -- Sinkronkan tabel payments jika ada
-  INSERT INTO public.payments (order_id, method, amount, status, external_reference, verified_by, verified_at)
-  SELECT o.id, 'Manual Cashier Verification', reg.total_amount, 'paid', p_external_ref, p_actor, now()
-  FROM orders o WHERE o.order_number = p_order_id;
 
   PERFORM _issue_tickets(reg.id);
 
@@ -1225,13 +1254,10 @@ DECLARE
   v_key TEXT; 
   v_nid UUID; 
   v_new TEXT;
+  v_is_late BOOLEAN := false;
   t transactions; 
   reg registrations; 
   res quota_reservations; 
-  ev events; 
-  tc ticket_categories; 
-  ev_taken INT; 
-  tc_taken INT;
   v_redacted JSONB := p_payload - 'signature_key' - 'va_numbers' - 'permata_va_number' - 'bill_key' - 'masked_card' - 'card_type';
 BEGIN
   IF NOT p_signature_valid THEN
@@ -1278,63 +1304,158 @@ BEGIN
     RETURN jsonb_build_object('result', 'ignored'); 
   END IF;
 
-  -- Status final tidak boleh mundur
-  IF t.transaction_status IN ('refunded', 'failed', 'cancelled', 'expired') 
+  -- Status final tidak boleh mundur (namun jika v_new = 'paid', biarkan diproses untuk penanganan telat bayar)
+  IF (t.transaction_status IN ('refunded', 'failed') AND v_new <> 'paid')
+     OR (t.transaction_status = 'cancelled' AND v_new <> 'paid')
      OR (t.transaction_status = 'paid' AND v_new NOT IN ('paid', 'refunded', 'partially_refunded')) 
      OR (t.transaction_status = 'partially_refunded' AND v_new <> 'refunded') THEN
     UPDATE payment_notifications SET processing_status = 'ignored_out_of_order' WHERE id = v_nid; 
     RETURN jsonb_build_object('result', 'ignored_out_of_order');
   END IF;
 
-  UPDATE transactions SET 
-    transaction_status = v_new, 
-    provider_transaction_id = COALESCE(provider_transaction_id, v_tid), 
-    fraud_status = v_fraud,
-    payment_type = COALESCE(p_payload ->> 'payment_type', payment_type), 
-    raw_status = v_status,
-    transaction_time = COALESCE((p_payload ->> 'transaction_time')::timestamp at time zone 'Asia/Jakarta', transaction_time),
-    paid_at = CASE WHEN v_new = 'paid' AND paid_at IS NULL THEN now() ELSE paid_at END 
-  WHERE id = t.id;
-
   SELECT * INTO reg FROM registrations WHERE id = t.registration_id FOR UPDATE;
 
+  -- ===========================================================================
+  -- JIKA NOTIFIKASI ADALAH PEMBAYARAN LUNAS ('paid' / 'settlement')
+  -- ===========================================================================
   IF v_new = 'paid' THEN
     SELECT * INTO res FROM quota_reservations WHERE registration_id = reg.id ORDER BY reserved_at DESC LIMIT 1 FOR UPDATE;
-    IF res.status = 'reserved' THEN 
-      UPDATE quota_reservations SET status = 'confirmed', confirmed_at = now() WHERE id = res.id;
-    ELSIF res.status IN ('released', 'expired') THEN
-      SELECT * INTO ev FROM events WHERE id = res.event_id FOR UPDATE; 
-      SELECT * INTO tc FROM ticket_categories WHERE id = res.ticket_category_id FOR UPDATE;
-      SELECT COALESCE(sum(quantity), 0) INTO ev_taken FROM quota_reservations WHERE event_id = ev.id AND status IN ('reserved', 'confirmed');
-      SELECT COALESCE(sum(quantity), 0) INTO tc_taken FROM quota_reservations WHERE ticket_category_id = tc.id AND status IN ('reserved', 'confirmed');
-      
-      IF ev.total_quota - ev_taken >= res.quantity AND tc.quota - tc_taken >= res.quantity THEN
-        UPDATE quota_reservations SET status = 'confirmed', confirmed_at = now(), released_at = null, release_reason = null WHERE id = res.id;
-      ELSE
-        UPDATE registrations SET registration_status = 'cancelled', payment_status = 'paid', status = 'paid', admin_note = 'Pembayaran valid diterima setelah kuota dilepas; perlu refund.' WHERE id = reg.id;
-        INSERT INTO activity_logs (actor_type, action, resource_type, resource_id, reason) VALUES ('system', 'late_payment_requires_refund', 'registration', reg.id::text, t.order_id);
-        UPDATE payment_notifications SET processing_status = 'processed_needs_refund' WHERE id = v_nid;
-        RETURN jsonb_build_object('result', 'paid_no_quota');
+
+    -- VALIDASI KETAT WAKTU PEMBAYARAN:
+    -- Dikatakan terlambat (kadaluarsa) jika:
+    -- 1. Batas waktu expiry_time di tabel transactions sudah lewat
+    -- 2. ATAU batas waktu expires_at di tabel quota_reservations sudah lewat
+    -- 3. ATAU status reservasi kuota bukan 'reserved' (misal: 'expired' atau 'released')
+    -- 4. ATAU status pendaftaran sudah 'expired' atau 'cancelled'
+    -- 5. ATAU status transaksi awal sebelum notifikasi sudah 'expired'
+    v_is_late := (
+      (t.expiry_time IS NOT NULL AND t.expiry_time < now())
+      OR (res.id IS NOT NULL AND res.expires_at IS NOT NULL AND res.expires_at < now())
+      OR (res.id IS NOT NULL AND res.status IN ('expired', 'released'))
+      OR (reg.registration_status IN ('expired', 'cancelled'))
+      OR (t.transaction_status = 'expired')
+    );
+
+    IF v_is_late THEN
+      -- -----------------------------------------------------------------------
+      -- KASUS A: PEMBAYARAN KADALUARSA (TELAT BAYAR)
+      -- Uang tercatat masuk ke rekening, TAPI TIKET TIDAK BOLEH TERBIT!
+      -- -----------------------------------------------------------------------
+      UPDATE transactions SET 
+        transaction_status = 'paid', 
+        provider_transaction_id = COALESCE(provider_transaction_id, v_tid), 
+        fraud_status = v_fraud,
+        payment_type = COALESCE(p_payload ->> 'payment_type', payment_type), 
+        raw_status = 'settlement_late_expired',
+        transaction_time = COALESCE((p_payload ->> 'transaction_time')::timestamp at time zone 'Asia/Jakarta', transaction_time),
+        paid_at = CASE WHEN paid_at IS NULL THEN now() ELSE paid_at END 
+      WHERE id = t.id;
+
+      -- Lepaskan kuota jika masih berstatus 'reserved' agar tidak membebani kapasitas event
+      IF res.id IS NOT NULL AND res.status = 'reserved' THEN
+        UPDATE quota_reservations 
+        SET status = 'expired', released_at = now(), release_reason = 'late_payment_expired' 
+        WHERE id = res.id;
       END IF;
+
+      -- Batalkan registrasi, catat pembayaran lunas, dan beri alert refund untuk admin
+      UPDATE registrations SET 
+        registration_status = 'cancelled', 
+        payment_status = 'paid', 
+        admin_note = 'Pembayaran diterima SETELAH batas waktu kadaluarsa (Telat bayar). Tiket TIDAK diterbitkan. Perlu refund manual ke peserta.',
+        updated_at = now()
+      WHERE id = reg.id;
+
+      -- Log aktivitas sistem
+      INSERT INTO activity_logs (actor_type, action, resource_type, resource_id, reason) 
+      VALUES ('system', 'late_payment_no_ticket', 'registration', reg.id::text, t.order_id);
+
+      -- Kirim notifikasi sistem ke akun peserta
+      IF reg.user_id IS NOT NULL THEN
+        INSERT INTO notifications (user_id, title, body, type, related_type, related_id) 
+        VALUES (
+          reg.user_id, 
+          'Pembayaran Melebihi Batas Waktu', 
+          'Pembayaran Anda berhasil kami terima, namun waktu pembayaran pendaftaran Anda telah kadaluarsa sehingga tiket tidak dapat diterbitkan. Silakan hubungi admin panitia untuk proses pengembalian dana (refund).', 
+          'late_payment_expired', 
+          'registration', 
+          reg.id
+        );
+      END IF;
+
+      UPDATE payment_notifications SET processing_status = 'processed_late_requires_refund' WHERE id = v_nid;
+      RETURN jsonb_build_object('result', 'paid_late_expired_no_ticket', 'status', 'cancelled');
+
+    ELSE
+      -- -----------------------------------------------------------------------
+      -- KASUS B: PEMBAYARAN VALID & TEPAT WAKTU (ON TIME) -> TERBITKAN TIKET
+      -- -----------------------------------------------------------------------
+      UPDATE transactions SET 
+        transaction_status = 'paid', 
+        provider_transaction_id = COALESCE(provider_transaction_id, v_tid), 
+        fraud_status = v_fraud,
+        payment_type = COALESCE(p_payload ->> 'payment_type', payment_type), 
+        raw_status = v_status,
+        transaction_time = COALESCE((p_payload ->> 'transaction_time')::timestamp at time zone 'Asia/Jakarta', transaction_time),
+        paid_at = CASE WHEN paid_at IS NULL THEN now() ELSE paid_at END,
+        updated_at = now()
+      WHERE id = t.id;
+
+      IF res.id IS NOT NULL THEN
+        UPDATE quota_reservations SET status = 'confirmed', confirmed_at = now() WHERE id = res.id;
+      END IF;
+
+      UPDATE registrations SET 
+        registration_status = 'confirmed', 
+        payment_status = 'paid', 
+        confirmed_at = COALESCE(confirmed_at, now()),
+        updated_at = now()
+      WHERE id = reg.id;
+
+      -- Penerbitan E-Ticket resmi hanya terjadi jika pembayaran tepat waktu
+      PERFORM _issue_tickets(reg.id);
+
+      UPDATE payment_notifications SET processing_status = 'processed' WHERE id = v_nid;
+      RETURN jsonb_build_object('result', 'processed', 'status', 'paid');
     END IF;
 
-    UPDATE registrations SET registration_status = 'confirmed', payment_status = 'paid', status = 'paid', confirmed_at = COALESCE(confirmed_at, now()) WHERE id = reg.id;
-    PERFORM _issue_tickets(reg.id);
-
   ELSIF v_new IN ('failed', 'cancelled', 'expired') THEN
+    UPDATE transactions SET 
+      transaction_status = v_new, 
+      provider_transaction_id = COALESCE(provider_transaction_id, v_tid), 
+      fraud_status = v_fraud,
+      payment_type = COALESCE(p_payload ->> 'payment_type', payment_type), 
+      raw_status = v_status,
+      transaction_time = COALESCE((p_payload ->> 'transaction_time')::timestamp at time zone 'Asia/Jakarta', transaction_time),
+      updated_at = now()
+    WHERE id = t.id;
+
     IF NOT EXISTS (SELECT 1 FROM transactions WHERE registration_id = reg.id AND transaction_status = 'paid') THEN
-      UPDATE quota_reservations SET status = CASE WHEN v_new = 'expired' THEN 'expired' ELSE 'released' END, released_at = now(), release_reason = 'payment_' || v_new
+      UPDATE quota_reservations 
+      SET status = CASE WHEN v_new = 'expired' THEN 'expired' ELSE 'released' END, released_at = now(), release_reason = 'payment_' || v_new
       WHERE registration_id = reg.id AND status = 'reserved';
       
-      UPDATE registrations SET payment_status = v_new, status = v_new, registration_status = CASE WHEN registration_status IN ('draft', 'awaiting_payment') THEN (CASE WHEN v_new = 'expired' THEN 'expired' ELSE 'cancelled' END) ELSE registration_status END WHERE id = reg.id;
+      UPDATE registrations 
+      SET payment_status = v_new, 
+          registration_status = CASE WHEN registration_status IN ('draft', 'awaiting_payment') THEN (CASE WHEN v_new = 'expired' THEN 'expired' ELSE 'cancelled' END) ELSE registration_status END,
+          updated_at = now()
+      WHERE id = reg.id;
     END IF;
 
   ELSIF v_new IN ('refunded', 'partially_refunded') THEN
-    UPDATE registrations SET payment_status = v_new, status = v_new WHERE id = reg.id;
+    UPDATE transactions SET 
+      transaction_status = v_new, 
+      provider_transaction_id = COALESCE(provider_transaction_id, v_tid), 
+      fraud_status = v_fraud,
+      raw_status = v_status,
+      updated_at = now()
+    WHERE id = t.id;
+
+    UPDATE registrations SET payment_status = v_new, updated_at = now() WHERE id = reg.id;
     IF v_new = 'refunded' THEN
       UPDATE tickets SET status = 'void' WHERE registration_id = reg.id AND status = 'active';
       UPDATE quota_reservations SET status = 'released', released_at = now(), release_reason = 'refunded' WHERE registration_id = reg.id AND status = 'confirmed';
-      UPDATE registrations SET registration_status = 'cancelled' WHERE id = reg.id;
+      UPDATE registrations SET registration_status = 'cancelled', updated_at = now() WHERE id = reg.id;
     END IF;
   END IF;
 
@@ -1348,14 +1469,41 @@ RETURNS INT LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE n INT;
 BEGIN
   WITH exp AS (
-    SELECT qr.id, qr.registration_id FROM quota_reservations qr JOIN registrations r ON r.id = qr.registration_id
+    SELECT qr.id, qr.registration_id 
+    FROM quota_reservations qr 
+    JOIN registrations r ON r.id = qr.registration_id
     WHERE qr.status = 'reserved' AND qr.expires_at < now()
-      AND NOT EXISTS (SELECT 1 FROM transactions t WHERE t.registration_id = r.id AND (t.transaction_status = 'paid' OR (t.transaction_status = 'pending' AND COALESCE(t.expiry_time, qr.expires_at) > now() - interval '5 minutes')))
-    FOR UPDATE OF r, qr SKIP LOCKED),
-  upd AS (UPDATE quota_reservations q SET status = 'expired', released_at = now(), release_reason = 'reservation_expired' FROM exp WHERE q.id = exp.id RETURNING q.registration_id),
-  reg AS (UPDATE registrations r SET registration_status = 'expired', payment_status = CASE WHEN r.payment_status = 'pending' THEN 'expired' ELSE r.payment_status END, status = CASE WHEN r.status = 'pending' THEN 'expired' ELSE r.status END
-          FROM upd WHERE r.id = upd.registration_id AND r.registration_status IN ('draft', 'awaiting_payment') RETURNING r.id)
-  SELECT count(*) INTO n FROM upd;
+      AND NOT EXISTS (
+        SELECT 1 FROM transactions t 
+        WHERE t.registration_id = r.id 
+          AND (t.transaction_status = 'paid' OR (t.transaction_status = 'pending' AND COALESCE(t.expiry_time, qr.expires_at) > now() - interval '5 minutes'))
+      )
+    FOR UPDATE OF r, qr SKIP LOCKED
+  ),
+  upd_qr AS (
+    UPDATE quota_reservations q 
+    SET status = 'expired', released_at = now(), release_reason = 'reservation_expired' 
+    FROM exp WHERE q.id = exp.id 
+    RETURNING q.registration_id
+  ),
+  upd_reg AS (
+    UPDATE registrations r 
+    SET registration_status = 'expired', 
+        payment_status = CASE WHEN r.payment_status = 'pending' THEN 'expired' ELSE r.payment_status END,
+        updated_at = now()
+    FROM upd_qr 
+    WHERE r.id = upd_qr.registration_id AND r.registration_status IN ('draft', 'awaiting_payment') 
+    RETURNING r.id
+  ),
+  upd_tx AS (
+    UPDATE transactions t
+    SET transaction_status = 'expired',
+        updated_at = now()
+    FROM upd_qr 
+    WHERE t.registration_id = upd_qr.registration_id 
+      AND t.transaction_status = 'pending'
+  )
+  SELECT count(*) INTO n FROM upd_qr;
   RETURN n;
 END $$;
 
@@ -1369,10 +1517,10 @@ DECLARE reg registrations;
 BEGIN
   SELECT * INTO reg FROM registrations WHERE id = p_registration FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'NOT_FOUND'; END IF;
-  IF reg.registration_status NOT IN ('draft', 'awaiting_payment') OR reg.payment_status = 'paid' OR reg.status = 'paid' THEN RAISE EXCEPTION 'INVALID_STATE'; END IF;
+  IF reg.registration_status NOT IN ('draft', 'awaiting_payment') OR reg.payment_status = 'paid' THEN RAISE EXCEPTION 'INVALID_STATE'; END IF;
   
   UPDATE quota_reservations SET status = 'released', released_at = now(), release_reason = 'admin_cancel' WHERE registration_id = reg.id AND status = 'reserved';
-  UPDATE registrations SET registration_status = 'cancelled', payment_status = CASE WHEN payment_status = 'pending' THEN 'cancelled' ELSE payment_status END, status = CASE WHEN status = 'pending' THEN 'cancelled' ELSE status END, admin_note = left(p_reason, 500) WHERE id = reg.id;
+  UPDATE registrations SET registration_status = 'cancelled', payment_status = CASE WHEN payment_status = 'pending' THEN 'cancelled' ELSE payment_status END, admin_note = left(p_reason, 500), updated_at = now() WHERE id = reg.id;
   
   INSERT INTO activity_logs (actor_user_id, action, resource_type, resource_id, before_data, after_data, reason)
   VALUES (p_actor, 'registration.cancel', 'registration', reg.id::text, jsonb_build_object('status', reg.registration_status), jsonb_build_object('status', 'cancelled'), p_reason);

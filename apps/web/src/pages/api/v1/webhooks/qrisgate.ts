@@ -146,33 +146,69 @@ export const POST = route({ rate: [300, 60_000] }, async ({ ctx }) => {
 
   if (rpcErr) {
     console.error('[QRISGate Webhook] RPC process_payment_notification error:', rpcErr);
-    // Direct fallback jika RPC mengalami hambatan
-    await db
-      .from('transactions')
-      .update({
-        transaction_status: 'paid',
-        paid_at: new Date().toISOString(),
-        provider_transaction_id: externalRef,
-        raw_status: 'settlement',
-      })
-      .eq('id', targetTx.id);
+    // Direct fallback jika RPC mengalami hambatan:
+    // Periksa apakah transaksi sudah kadaluarsa (telat bayar)
+    const isLate =
+      (targetTx.expiry_time && new Date(targetTx.expiry_time).getTime() < Date.now()) ||
+      targetTx.transaction_status === 'expired';
 
-    await db
-      .from('registrations')
-      .update({
-        registration_status: 'confirmed',
-        payment_status: 'paid',
-        confirmed_at: new Date().toISOString(),
-      })
-      .eq('id', targetTx.registration_id);
+    if (isLate) {
+      await db
+        .from('transactions')
+        .update({
+          transaction_status: 'paid',
+          paid_at: new Date().toISOString(),
+          provider_transaction_id: externalRef,
+          raw_status: 'settlement_late_expired',
+        })
+        .eq('id', targetTx.id);
 
-    await db
-      .from('quota_reservations')
-      .update({
-        status: 'confirmed',
-        confirmed_at: new Date().toISOString(),
-      })
-      .eq('registration_id', targetTx.registration_id);
+      await db
+        .from('registrations')
+        .update({
+          registration_status: 'cancelled',
+          payment_status: 'paid',
+          admin_note: 'Pembayaran diterima setelah kadaluarsa (Telat bayar). Tiket TIDAK diterbitkan. Perlu refund manual ke peserta.',
+        })
+        .eq('id', targetTx.registration_id);
+
+      await db
+        .from('quota_reservations')
+        .update({
+          status: 'expired',
+          released_at: new Date().toISOString(),
+          release_reason: 'late_payment_expired',
+        })
+        .eq('registration_id', targetTx.registration_id)
+        .eq('status', 'reserved');
+    } else {
+      await db
+        .from('transactions')
+        .update({
+          transaction_status: 'paid',
+          paid_at: new Date().toISOString(),
+          provider_transaction_id: externalRef,
+          raw_status: 'settlement',
+        })
+        .eq('id', targetTx.id);
+
+      await db
+        .from('registrations')
+        .update({
+          registration_status: 'confirmed',
+          payment_status: 'paid',
+          confirmed_at: new Date().toISOString(),
+        })
+        .eq('id', targetTx.registration_id);
+
+      await db
+        .from('quota_reservations')
+        .update({
+          status: 'confirmed',
+          confirmed_at: new Date().toISOString(),
+        })
+        .eq('registration_id', targetTx.registration_id);
+    }
   }
 
   return ok({

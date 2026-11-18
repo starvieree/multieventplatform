@@ -3,6 +3,7 @@
 
 const root = document.getElementById('pay');
 const regId = root?.dataset.id;
+const eventUrl = root?.dataset.eventUrl || '/events';
 const statusUrl = `/registration/${regId}/status`;
 
 // UI Elements
@@ -96,7 +97,65 @@ function handleOrderExpired() {
   if (qrExpiredOverlay) {
     qrExpiredOverlay.hidden = false;
     qrExpiredOverlay.classList.add('is-active');
+    qrExpiredOverlay.innerHTML = `
+      <div style="background: white; padding: 24px; border-radius: 16px; text-align: center; max-width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid #fca5a5;">
+        <div style="font-size: 36px; margin-bottom: 8px;">⏱️</div>
+        <h3 style="color: #991b1b; margin: 0 0 6px; font-size: 1.1rem; font-weight: 750;">Waktu Habis</h3>
+        <p style="font-size: 13px; color: #4b5563; line-height: 1.5; margin: 0 0 14px;">
+          Batas waktu pembayaran telah habis. Anda akan dialihkan kembali ke halaman event...
+        </p>
+        <a href="${eventUrl}" class="btn btn--primary" style="display: block; width: 100%; text-decoration: none; padding: 8px 12px; font-size: 13px; border-radius: 8px;">
+          Kembali ke Event
+        </a>
+      </div>
+    `;
   }
+
+  // Otomatis terpental ke halaman event setelah 2 detik
+  setTimeout(() => {
+    const targetUrl = eventUrl.includes('?') ? `${eventUrl}&expired=1` : `${eventUrl}?expired=1`;
+    window.location.href = targetUrl;
+  }, 2000);
+}
+
+function handleLatePaymentExpired(orderData?: any) {
+  isExpired = true;
+  if (pollTimer) clearInterval(pollTimer);
+  if (countdownInterval) clearInterval(countdownInterval);
+
+  if (orderStatusBadge) {
+    orderStatusBadge.className = 'badge-expired';
+    orderStatusBadge.innerHTML = '✕ PEMBAYARAN KADALUARSA';
+    orderStatusBadge.style.background = '#fef2f2';
+    orderStatusBadge.style.color = '#991b1b';
+    orderStatusBadge.style.borderColor = '#f87171';
+  }
+
+  if (countdownTimer) {
+    countdownTimer.textContent = '⏱️ Waktu Habis';
+    countdownTimer.classList.add('countdown-danger');
+  }
+
+  if (qrExpiredOverlay) {
+    qrExpiredOverlay.hidden = false;
+    qrExpiredOverlay.classList.add('is-active');
+    qrExpiredOverlay.innerHTML = `
+      <div style="background: white; padding: 24px; border-radius: 14px; text-align: center; max-width: 340px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border: 1px solid #fca5a5;">
+        <div style="font-size: 36px; margin-bottom: 8px;">⚠️</div>
+        <h3 style="color: #991b1b; margin: 0 0 8px; font-size: 1.1rem; font-weight: 700;">Pembayaran Melebihi Batas Waktu</h3>
+        <p style="font-size: 13px; color: #4b5563; line-height: 1.5; margin: 0 0 16px;">
+          Pembayaran Anda terdeteksi, namun waktu pembayaran telah kadaluarsa sehingga <strong>tiket tidak dapat diterbitkan</strong>. Dana Anda tercatat untuk proses pengembalian dana (refund).
+        </p>
+        <a href="${statusUrl}" class="btn btn--primary" style="display: block; width: 100%; text-decoration: none; padding: 10px; font-size: 13.5px; border-radius: 8px;">
+          Buka Status & Info Refund
+        </a>
+      </div>
+    `;
+  }
+
+  setTimeout(() => {
+    location.href = statusUrl;
+  }, 4000);
 }
 
 function startCountdown(targetExpiryMs: number) {
@@ -295,8 +354,10 @@ function startStatusPolling() {
       if (json.success && json.data) {
         const pStatus = json.data.payment_status;
         const rStatus = json.data.registration_status;
-        if (pStatus === 'paid' || rStatus === 'confirmed') {
+        if (pStatus === 'paid' && rStatus === 'confirmed') {
           showSuccessModal(json.data);
+        } else if (pStatus === 'paid' && (rStatus === 'cancelled' || rStatus === 'expired')) {
+          handleLatePaymentExpired(json.data);
         } else if (pStatus === 'expired' || rStatus === 'expired' || rStatus === 'cancelled') {
           handleOrderExpired();
         }

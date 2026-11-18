@@ -12,10 +12,19 @@ const { data: r } = await sb
 
 if (!r) return Astro.rewrite('/404');
 if (r.registration_status === 'draft') return Astro.redirect(`/registration/${r.id}/form`);
+if (r.registration_status === 'expired') {
+  const evSlug = (r as any).event?.slug;
+  return Astro.redirect(evSlug ? `/events/${evSlug}?expired=1` : '/events');
+}
 if (r.registration_status !== 'awaiting_payment') return Astro.redirect(`/registration/${r.id}/status`);
 
 const res = (r as any).reservations?.find((x: any) => x.status === 'reserved' && +new Date(x.expires_at) > Date.now());
 const ev = (r as any).event;
+
+if (!res) {
+  const evSlug = ev?.slug;
+  return Astro.redirect(evSlug ? `/events/${evSlug}?expired=1` : '/events');
+}
 
 // Ambil info merchant dari QRIS statis di env
 const qrisService = new QrisService();
@@ -107,7 +116,7 @@ const merchantLocation = `${merchantInfo.city || 'BANYUWANGI'}${merchantInfo.pos
         </div>
       </div>
     ) : (
-      <div id="pay" data-id={r.id} data-amount={r.total_amount}>
+      <div id="pay" data-id={r.id} data-amount={r.total_amount} data-event-url={ev?.slug ? `/events/${ev.slug}` : '/events'}>
         <!-- Header -->
         <div style="margin-bottom: 24px;">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">

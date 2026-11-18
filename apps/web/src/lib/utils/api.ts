@@ -19,7 +19,8 @@ const DB_ERRORS: Record<string, [number, string]> = {
 export function dbError(error: { message?: string } | null): never {
   const code = Object.keys(DB_ERRORS).find((k) => error?.message?.includes(k));
   if (code) throw new ApiError(DB_ERRORS[code][0], code, DB_ERRORS[code][1]);
-  throw new Error('DB_ERROR');
+  console.error('[DB ERROR]', error);
+  throw new ApiError(500, 'db_error', error?.message ? `Database: ${error.message}` : 'Terjadi kesalahan pada database.');
 }
 
 type Opts<S extends ZodTypeAny> = { auth?: 'none' | 'user' | 'admin'; perm?: string; rate?: [limit: number, windowMs: number]; schema?: S };

@@ -76,32 +76,67 @@ export const POST = route({ rate: [120, 60_000] }, async ({ ctx }) => {
   if (rpcErr) {
     console.error('[Mutation Ingest] RPC process_payment_notification error:', rpcErr);
     // Direct fallback jika RPC terkendala
-    await db
-      .from('transactions')
-      .update({
-        transaction_status: 'paid',
-        paid_at: new Date().toISOString(),
-        provider_transaction_id: externalRef,
-        raw_status: 'settlement',
-      })
-      .eq('id', matchedTx.id);
+    const isLate =
+      (matchedTx.expiry_time && new Date(matchedTx.expiry_time).getTime() < Date.now()) ||
+      matchedTx.transaction_status === 'expired';
 
-    await db
-      .from('registrations')
-      .update({
-        registration_status: 'confirmed',
-        payment_status: 'paid',
-        confirmed_at: new Date().toISOString(),
-      })
-      .eq('id', matchedTx.registration_id);
+    if (isLate) {
+      await db
+        .from('transactions')
+        .update({
+          transaction_status: 'paid',
+          paid_at: new Date().toISOString(),
+          provider_transaction_id: externalRef,
+          raw_status: 'settlement_late_expired',
+        })
+        .eq('id', matchedTx.id);
 
-    await db
-      .from('quota_reservations')
-      .update({
-        status: 'confirmed',
-        confirmed_at: new Date().toISOString(),
-      })
-      .eq('registration_id', matchedTx.registration_id);
+      await db
+        .from('registrations')
+        .update({
+          registration_status: 'cancelled',
+          payment_status: 'paid',
+          admin_note: 'Pembayaran mutasi diterima setelah kadaluarsa (Telat bayar). Tiket TIDAK diterbitkan. Perlu refund manual ke peserta.',
+        })
+        .eq('id', matchedTx.registration_id);
+
+      await db
+        .from('quota_reservations')
+        .update({
+          status: 'expired',
+          released_at: new Date().toISOString(),
+          release_reason: 'late_payment_expired',
+        })
+        .eq('registration_id', matchedTx.registration_id)
+        .eq('status', 'reserved');
+    } else {
+      await db
+        .from('transactions')
+        .update({
+          transaction_status: 'paid',
+          paid_at: new Date().toISOString(),
+          provider_transaction_id: externalRef,
+          raw_status: 'settlement',
+        })
+        .eq('id', matchedTx.id);
+
+      await db
+        .from('registrations')
+        .update({
+          registration_status: 'confirmed',
+          payment_status: 'paid',
+          confirmed_at: new Date().toISOString(),
+        })
+        .eq('id', matchedTx.registration_id);
+
+      await db
+        .from('quota_reservations')
+        .update({
+          status: 'confirmed',
+          confirmed_at: new Date().toISOString(),
+        })
+        .eq('registration_id', matchedTx.registration_id);
+    }
   }
 
   return ok({
