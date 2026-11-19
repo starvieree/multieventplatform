@@ -2,12 +2,14 @@
 import EventRows from "./EventRows.astro";
 import FormField from "./FormField.astro";
 import { toInputDateTime, mediaUrl } from "../lib/utils/format";
+
 interface Props {
   ev?: Record<string, any> | null;
   tickets?: any[];
   fields?: any[];
   categories: { id: string; name: string }[];
 }
+
 const { ev = null, tickets = [], fields = [], categories } = Astro.props;
 const e = ev ?? {
   event_type: "offline",
@@ -15,15 +17,17 @@ const e = ev ?? {
   total_quota: 0,
   faq: [],
 };
+
 const tabs = [
-  ["dasar", "Informasi dasar"],
-  ["media", "Media"],
-  ["jadwal", "Jadwal"],
-  ["lokasi", "Lokasi"],
-  ["tiket", "Kuota & tiket"],
-  ["formulir", "Formulir pendaftaran"],
+  ["dasar", "Informasi Dasar"],
+  ["media", "Media & Poster"],
+  ["jadwal", "Jadwal Acara"],
+  ["lokasi", "Lokasi & Venue"],
+  ["tiket", "Kuota & Tiket"],
+  ["formulir", "Form Tambahan"],
   ["faq", "FAQ & SEO"],
 ];
+
 const img = (name: string, label: string, hint?: string) => ({
   name,
   label,
@@ -32,78 +36,119 @@ const img = (name: string, label: string, hint?: string) => ({
 ---
 
 <form id="event-form" data-id={ev?.id ?? ""} novalidate>
-  <div class="tabs" role="tablist" aria-label="Bagian formulir event">
-    {
-      tabs.map(([k, l], i) => (
-        <button
-          type="button"
-          role="tab"
-          id={`tab-${k}`}
-          aria-controls={`p-${k}`}
-          aria-selected={i === 0}
-          tabindex={i === 0 ? 0 : -1}
-        >
-          {l}
-        </button>
-      ))
-    }
+  <!-- WIZARD BULLET STEPPER (o-----o-----o-----o) -->
+  <div class="wizard-stepper" role="tablist" aria-label="Alur langkah pengisian event">
+    <div class="wizard-stepper__track">
+      {
+        tabs.map(([k, l], i) => (
+          <>
+            {i > 0 && <div class={`wizard-step__line step-line-${i}`} aria-hidden="true"></div>}
+            <div class={`wizard-step step-${k} ${i === 0 ? 'is-active' : 'is-locked'}`} data-step-key={k}>
+              <button
+                type="button"
+                role="tab"
+                id={`tab-${k}`}
+                data-tab={k}
+                data-step-index={i}
+                aria-controls={`p-${k}`}
+                aria-selected={i === 0}
+                tabindex={i === 0 ? 0 : -1}
+                disabled={i > 0}
+                class="wizard-step__bullet"
+                title={`Langkah ${i + 1}: ${l}`}
+              >
+                <span class="wizard-step__circle">
+                  <span class="wizard-step__num">{i + 1}</span>
+                  <svg class="wizard-step__check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </span>
+                <span class="wizard-step__label">{l}</span>
+              </button>
+            </div>
+          </>
+        ))
+      }
+    </div>
   </div>
 
+  <!-- 1. INFORMASI DASAR -->
   <section
     role="tabpanel"
     id="p-dasar"
     aria-labelledby="tab-dasar"
     class="form card card--pad"
   >
+    <div class="form-section-header">
+      <h2>1. Informasi Dasar Event</h2>
+      <p>Langkah 1 dari 7: Tentukan judul, tautan (slug), kategori, dan gambaran umum acara.</p>
+    </div>
+
     <FormField
       name="title"
-      label="Judul event"
+      label="Judul Event"
       value={e.title}
       required
-    /><FormField
+      hint="Contoh: Ravevora Music Festival 2026"
+    />
+    <FormField
       name="slug"
-      label="Slug"
+      label="Slug URL"
       value={e.slug}
       required
-      hint="Huruf kecil, angka, tanda hubung. Dipakai pada URL /events/slug."
+      hint="Format URL ramah SEO. Hanya huruf kecil, angka, dan tanda hubung."
     />
     <FormField
       name="category_id"
       type="select"
-      label="Kategori"
+      label="Kategori Event"
       value={e.category_id}
+      required
       options={categories.map((c) => ({ value: c.id, label: c.name }))}
-    /><FormField
+    />
+    <FormField
       name="organizer_name"
-      label="Penyelenggara"
+      label="Nama Penyelenggara / Promotor"
       value={e.organizer_name}
     />
     <FormField
       name="event_type"
       type="select"
-      label="Tipe event"
+      label="Tipe Penyelenggaraan"
       required
       value={e.event_type}
       options={[
-        { value: "offline", label: "Offline" },
-        { value: "online", label: "Online" },
-        { value: "hybrid", label: "Hybrid" },
+        { value: "offline", label: "Offline (Lokasi Fisik)" },
+        { value: "online", label: "Online (Streaming / Virtual)" },
+        { value: "hybrid", label: "Hybrid (Fisik & Virtual)" },
       ]}
     />
     <FormField
       name="summary"
       type="textarea"
       rows={2}
-      label="Ringkasan"
+      label="Ringkasan Singkat"
       value={e.summary}
-    /><FormField
+      hint="Tampil pada kartu pratinjau di katalog publik (1-2 kalimat)."
+    />
+    <FormField
       name="description"
       type="textarea"
-      rows={8}
-      label="Deskripsi lengkap"
+      rows={7}
+      label="Deskripsi Lengkap"
       value={e.description}
+      hint="Penjelasan detail susunan acara, guest star, dan benefit."
     />
+
+    <div class="form-step-actions">
+      <a class="btn btn--secondary btn--sm" href="/admin/dashboard/events">Batal & Kembali</a>
+      <button type="button" class="btn btn--sm" data-step-next>
+        Lanjut: Media & Poster →
+      </button>
+    </div>
   </section>
+
+  <!-- 2. MEDIA & POSTER -->
   <section
     role="tabpanel"
     id="p-media"
@@ -111,98 +156,131 @@ const img = (name: string, label: string, hint?: string) => ({
     class="form card card--pad"
     hidden
   >
+    <div class="form-section-header">
+      <h2>2. Media & Poster Event</h2>
+      <p>Langkah 2 dari 7: Unggah poster promosi dan banner tampilan layar penuh.</p>
+    </div>
+
     {
       [
-        img("poster_path", "Poster"),
-        img("banner_path", "Banner"),
-        img(
-          "og_image_path",
-          "Gambar Open Graph",
-          "Dipakai saat tautan dibagikan.",
-        ),
+        img("poster_path", "Poster Utama (Vertikal / Portrait)", "Rekomendasi rasio 4:5 atau 1:1, JPG/PNG maks. 2 MB."),
+        img("banner_path", "Banner Layar Lebar (Horizontal / Landscape)", "Rekomendasi rasio 16:9, tampil di hero halaman detail."),
+        img("og_image_path", "Gambar Thumbnail Share (Open Graph)", "Tampil saat tautan dibagikan ke WhatsApp atau media sosial."),
       ].map((f) => (
         <div class="field" data-upload>
-          <>
-            <label for={`f-${f.name}`}>{f.label}</label>
-            <div class="row">
-              <>
-                <input
-                  class="input"
-                  style="flex:1"
-                  id={`f-${f.name}`}
-                  name={f.name}
-                  value={e[f.name] ?? ""}
-                  readonly
-                />
-                <label class="btn btn--secondary btn--sm" style="margin:0">
-                  Unggah
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    class="sr-only"
-                    data-file
-                  />
-                </label>
-              </>
-            </div>
-          </>
-          <div class="hint">
-            {f.hint ?? "JPG, PNG, atau WebP, maksimal 2 MB."}
+          <label for={`f-${f.name}`}>{f.label}</label>
+          <div class="row" style="gap:10px;">
+            <input
+              class="input"
+              style="flex:1"
+              id={`f-${f.name}`}
+              name={f.name}
+              value={e[f.name] ?? ""}
+              readonly
+              placeholder="Pilih berkas gambar untuk diunggah..."
+            />
+            <label class="btn btn--secondary btn--sm" style="margin:0; cursor:pointer;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              <span>Unggah</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                class="sr-only"
+                data-file
+              />
+            </label>
           </div>
+          <div class="hint">{f.hint}</div>
           {mediaUrl(e[f.name]) && (
             <img
               src={mediaUrl(e[f.name])!}
               alt=""
-              width="160"
-              height="90"
-              style="margin-top:8px;border-radius:8px;filter:grayscale(1)"
+              width="180"
+              height="100"
+              style="margin-top:10px; border-radius:10px; border:1px solid #E5E7EB; object-fit:cover;"
               data-preview
             />
           )}
         </div>
       ))
     }
+
     <FormField
       name="poster_alt"
-      label="Teks alternatif poster"
+      label="Teks Alternatif Poster (Alt Text)"
       value={e.poster_alt}
-      hint="Jelaskan isi poster untuk pembaca layar."
+      hint="Deskripsi singkat konten poster untuk aksesibilitas pembaca layar (screen reader)."
     />
+
+    <div class="form-step-actions">
+      <button type="button" class="btn btn--secondary btn--sm" data-step-prev>
+        ← Kembali: Informasi Dasar
+      </button>
+      <button type="button" class="btn btn--sm" data-step-next>
+        Lanjut: Jadwal Acara →
+      </button>
+    </div>
   </section>
+
+  <!-- 3. JADWAL ACARA -->
   <section
     role="tabpanel"
     id="p-jadwal"
     aria-labelledby="tab-jadwal"
-    class="form form--2 card card--pad"
+    class="form card card--pad"
     hidden
   >
-    <FormField
-      name="start_at"
-      type="datetime-local"
-      label="Event mulai (WIB)"
-      value={toInputDateTime(e.start_at)}
-      required
-    /><FormField
-      name="end_at"
-      type="datetime-local"
-      label="Event selesai (WIB)"
-      value={toInputDateTime(e.end_at)}
-      required
-    />
-    <FormField
-      name="registration_opens_at"
-      type="datetime-local"
-      label="Pendaftaran dibuka (WIB)"
-      value={toInputDateTime(e.registration_opens_at)}
-      required
-    /><FormField
-      name="registration_closes_at"
-      type="datetime-local"
-      label="Pendaftaran ditutup (WIB)"
-      value={toInputDateTime(e.registration_closes_at)}
-      required
-    />
+    <div class="form-section-header">
+      <h2>3. Jadwal & Waktu Pelaksanaan</h2>
+      <p>Langkah 3 dari 7: Atur rentang waktu acara dan masa pembukaan pendaftaran tiket.</p>
+    </div>
+
+    <div class="grid grid--2" style="gap:20px;">
+      <FormField
+        name="start_at"
+        type="datetime-local"
+        label="Event Dimulai (WIB)"
+        value={toInputDateTime(e.start_at)}
+        required
+      />
+      <FormField
+        name="end_at"
+        type="datetime-local"
+        label="Event Selesai (WIB)"
+        value={toInputDateTime(e.end_at)}
+        required
+      />
+      <FormField
+        name="registration_opens_at"
+        type="datetime-local"
+        label="Pendaftaran Dibuka (WIB)"
+        value={toInputDateTime(e.registration_opens_at)}
+        required
+      />
+      <FormField
+        name="registration_closes_at"
+        type="datetime-local"
+        label="Pendaftaran Ditutup (WIB)"
+        value={toInputDateTime(e.registration_closes_at)}
+        required
+      />
+    </div>
+
+    <div class="form-step-actions">
+      <button type="button" class="btn btn--secondary btn--sm" data-step-prev>
+        ← Kembali: Media & Poster
+      </button>
+      <button type="button" class="btn btn--sm" data-step-next>
+        Lanjut: Lokasi & Venue →
+      </button>
+    </div>
   </section>
+
+  <!-- 4. LOKASI & VENUE -->
   <section
     role="tabpanel"
     id="p-lokasi"
@@ -210,24 +288,44 @@ const img = (name: string, label: string, hint?: string) => ({
     class="form card card--pad"
     hidden
   >
+    <div class="form-section-header">
+      <h2>4. Lokasi & Tempat Pelaksanaan</h2>
+      <p>Langkah 4 dari 7: Tentukan alamat gedung/venue atau link tautan virtual meeting.</p>
+    </div>
+
     <FormField
       name="venue_name"
-      label="Nama tempat"
+      label="Nama Tempat / Gedung"
       value={e.venue_name}
-    /><FormField
+      hint="Contoh: Arena Jakarta Convention Center / Hall A"
+    />
+    <FormField
       name="address"
       type="textarea"
       rows={2}
-      label="Alamat"
+      label="Alamat Lengkap"
       value={e.address}
-    /><FormField
+      hint="Sertakan nama jalan, kota, dan patokan lokasi fisik."
+    />
+    <FormField
       name="online_url"
       type="url"
-      label="Tautan online"
+      label="Tautan Pertemuan Online (Zoom / YouTube Live / GMeet)"
       value={e.online_url}
-      hint="Untuk event online/hybrid."
+      hint="Hanya diperlukan jika tipe event online atau hybrid."
     />
+
+    <div class="form-step-actions">
+      <button type="button" class="btn btn--secondary btn--sm" data-step-prev>
+        ← Kembali: Jadwal Acara
+      </button>
+      <button type="button" class="btn btn--sm" data-step-next>
+        Lanjut: Kuota & Tiket →
+      </button>
+    </div>
   </section>
+
+  <!-- 5. KUOTA & TIKET -->
   <section
     role="tabpanel"
     id="p-tiket"
@@ -235,51 +333,80 @@ const img = (name: string, label: string, hint?: string) => ({
     class="stack"
     hidden
   >
-    <div class="form form--2 card card--pad">
-      <FormField
-        name="total_quota"
-        type="number"
-        min={0}
-        label="Kuota total event"
-        value={e.total_quota}
-        required
-        hint="Tidak dapat diturunkan di bawah jumlah yang sudah direservasi/terkonfirmasi."
-      />
-      <FormField
-        name="max_per_user"
-        type="number"
-        min={1}
-        max={20}
-        label="Maks. tiket per akun"
-        value={e.max_per_user}
-        required
-      />
-      <div class="field full" style="margin-top:6px">
-        <label class="check">
+    <div class="card card--pad">
+      <div class="form-section-header">
+        <h2>5. Batasan Kuota & Kategori Tiket</h2>
+        <p>Langkah 5 dari 7: Tentukan kuota global dan buat varian tiket (misal: Early Bird, VIP, Regular).</p>
+      </div>
+
+      <div class="grid grid--2" style="gap:20px;">
+        <FormField
+          name="total_quota"
+          type="number"
+          min={0}
+          label="Kuota Maksimal Seluruh Tiket"
+          value={e.total_quota}
+          required
+          hint="Total gabungan dari semua kategori tiket yang tersedia."
+        />
+        <FormField
+          name="max_per_user"
+          type="number"
+          min={1}
+          max={20}
+          label="Maksimal Tiket per Akun Pemesan"
+          value={e.max_per_user}
+          required
+          hint="Batasan pesanan untuk mencegah aksi calo tiket (default: 1-4)."
+        />
+      </div>
+
+      <div class="field full" style="margin-top:16px;">
+        <label class="check" style="display:flex; align-items:flex-start; gap:10px; cursor:pointer;">
           <input
             type="checkbox"
             name="allow_multiple_categories"
             checked={e.allow_multiple_categories}
+            style="margin-top:4px;"
           />
-          <span
-            ><b>Izinkan peserta mendaftar lebih dari 1 kategori tiket</b><div
-              class="hint"
-            >
-              Jika tidak dicentang (default), setiap akun hanya bisa memilih 1
-              kategori tiket untuk event ini (cocok untuk seminar/konser).
-              Centang jika event memiliki sesi paralel/multi-track.
-            </div></span
-          >
+          <span>
+            <b>Izinkan peserta memesan lebih dari 1 kategori tiket sekaligus</b>
+            <div class="hint" style="margin-top:2px; color:#6B7280; font-size:0.8rem;">
+              Centang jika event berupa multi-track workshop atau festival beberapa panggung.
+            </div>
+          </span>
         </label>
       </div>
     </div>
-    <div id="ticket-list" class="stack">
-      {tickets.map((t) => <EventRows kind="ticket" d={t} />)}
+
+    <!-- DAFTAR KATEGORI TIKET -->
+    <div class="card card--pad">
+      <div class="row between" style="margin-bottom:16px; border-bottom:1px solid #F3F4F6; padding-bottom:10px;">
+        <div>
+          <h3 style="font-size:1.05rem; font-weight:600; color:#111827; margin:0;">Daftar Kategori Tiket</h3>
+          <p class="muted small" style="margin:2px 0 0;">Tambahkan setidaknya satu jenis tiket untuk dapat dipublikasikan.</p>
+        </div>
+        <button class="btn btn--secondary btn--sm" type="button" data-add="ticket">
+          + Tambah Kategori Tiket
+        </button>
+      </div>
+
+      <div id="ticket-list" class="stack" style="gap:16px;">
+        {tickets.map((t) => <EventRows kind="ticket" d={t} />)}
+      </div>
     </div>
-    <button class="btn btn--secondary" type="button" data-add="ticket"
-      >Tambah kategori tiket</button
-    >
+
+    <div class="form-step-actions" style="margin-top:0;">
+      <button type="button" class="btn btn--secondary btn--sm" data-step-prev>
+        ← Kembali: Lokasi & Venue
+      </button>
+      <button type="button" class="btn btn--sm" data-step-next>
+        Lanjut: Form Tambahan →
+      </button>
+    </div>
   </section>
+
+  <!-- 6. FORMULIR TAMBAHAN -->
   <section
     role="tabpanel"
     id="p-formulir"
@@ -287,16 +414,39 @@ const img = (name: string, label: string, hint?: string) => ({
     class="stack"
     hidden
   >
-    <p class="muted small">
-      Field tambahan yang diisi peserta setelah kuota diamankan. Validasi
-      dijalankan di server.
-    </p>
-    <div id="field-list" class="stack">
-      {fields.map((f) => <EventRows kind="field" d={f} />)}
-    </div><button class="btn btn--secondary" type="button" data-add="field"
-      >Tambah field</button
-    >
+    <div class="card card--pad">
+      <div class="row between" style="margin-bottom:16px; border-bottom:1px solid #F3F4F6; padding-bottom:10px;">
+        <div>
+          <h2 style="font-size:1.15rem; font-weight:700; color:#111827; margin:0;">6. Pertanyaan Khusus Pendaftaran</h2>
+          <p class="muted small" style="margin:2px 0 0;">Langkah 6 dari 7: Field tambahan yang diisi peserta (misal: Ukuran Kaos, Instansi/Kampus).</p>
+        </div>
+        <button class="btn btn--secondary btn--sm" type="button" data-add="field">
+          + Tambah Field Baru
+        </button>
+      </div>
+
+      <div id="field-list" class="stack" style="gap:16px;">
+        {fields.map((f) => <EventRows kind="field" d={f} />)}
+      </div>
+
+      {fields.length === 0 && (
+        <p class="muted small" style="text-align:center; padding: 20px 0; margin:0;">
+          Opsional: Jika tidak ada field tambahan, formulir pendaftaran hanya menanyakan nama, email, dan telepon peserta standar.
+        </p>
+      )}
+    </div>
+
+    <div class="form-step-actions" style="margin-top:0;">
+      <button type="button" class="btn btn--secondary btn--sm" data-step-prev>
+        ← Kembali: Kuota & Tiket
+      </button>
+      <button type="button" class="btn btn--sm" data-step-next>
+        Lanjut: FAQ & SEO (Langkah Terakhir) →
+      </button>
+    </div>
   </section>
+
+  <!-- 7. FAQ & SEO (PENGISIAN TERAKHIR DENGAN TOMBOL SIMPAN) -->
   <section
     role="tabpanel"
     id="p-faq"
@@ -304,47 +454,92 @@ const img = (name: string, label: string, hint?: string) => ({
     class="stack"
     hidden
   >
-    <div class="form card card--pad">
+    <div class="card card--pad">
+      <div class="form-section-header">
+        <h2>7. FAQ & Optimasi Mesin Pencari (SEO)</h2>
+        <p>Langkah 7 dari 7 (Terakhir): Ketentuan acara, pertanyaan umum, dan penyimpanan event.</p>
+      </div>
+
       <FormField
         name="requirements"
         type="textarea"
         rows={3}
-        label="Persyaratan peserta"
+        label="Ketentuan / Syarat Wajib Peserta"
         value={e.requirements}
-      /><FormField
-        name="meta_title"
-        label="Meta title"
-        value={e.meta_title}
-      /><FormField
-        name="meta_description"
-        type="textarea"
-        rows={2}
-        label="Meta description"
-        value={e.meta_description}
+        hint="Contoh: Wajib berusia 18+, membawa identitas asli, berpakaian rapi."
       />
+      <div class="grid grid--2" style="gap:20px;">
+        <FormField
+          name="meta_title"
+          label="Meta Title (SEO)"
+          value={e.meta_title}
+          hint="Judul pencarian di Google (maks. 60 karakter)."
+        />
+        <FormField
+          name="meta_description"
+          type="textarea"
+          rows={2}
+          label="Meta Description (SEO)"
+          value={e.meta_description}
+          hint="Deskripsi cuplikan di Google (maks. 160 karakter)."
+        />
+      </div>
     </div>
-    <div id="faq-list" class="stack">
-      {
-        (Array.isArray(e.faq) ? e.faq : []).map((f: any) => (
-          <EventRows kind="faq" d={f} />
-        ))
-      }
-    </div><button class="btn btn--secondary" type="button" data-add="faq"
-      >Tambah FAQ</button
-    >
+
+    <!-- DAFTAR FAQ -->
+    <div class="card card--pad">
+      <div class="row between" style="margin-bottom:16px; border-bottom:1px solid #F3F4F6; padding-bottom:10px;">
+        <div>
+          <h3 style="font-size:1.05rem; font-weight:600; color:#111827; margin:0;">Pertanyaan yang Sering Diajukan (FAQ)</h3>
+          <p class="muted small" style="margin:2px 0 0;">Bantu pengunjung memahami detail acara secara mandiri.</p>
+        </div>
+        <button class="btn btn--secondary btn--sm" type="button" data-add="faq">
+          + Tambah Tanya Jawab
+        </button>
+      </div>
+
+      <div id="faq-list" class="stack" style="gap:16px;">
+        {
+          (Array.isArray(e.faq) ? e.faq : []).map((f: any) => (
+            <EventRows kind="faq" d={f} />
+          ))
+        }
+      </div>
+    </div>
+
+    <!-- AREA SIMPAN DI LANGKAH TERAKHIR -->
+    <div class="card card--pad" style="border: 1.5px solid #A7F3D0; background: #F0FDF4;">
+      <div class="row between" style="align-items:center; flex-wrap:wrap; gap:16px;">
+        <div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="display:inline-flex; width:22px; height:22px; border-radius:50%; background:#10B981; color:#fff; align-items:center; justify-content:center; font-size:12px; font-weight:700;">✓</span>
+            <b style="color:#065F46; font-size:1rem;">Langkah Terakhir Selesai: Siap Menyimpan Event?</b>
+          </div>
+          <p class="muted small" style="margin:4px 0 0; color:#047857;">Periksa kembali jika ada informasi yang ingin diubah sebelum menyimpan.</p>
+        </div>
+        <div class="row" style="gap:12px;">
+          <button type="button" class="btn btn--secondary" data-step-prev>
+            ← Kembali: Form Tambahan
+          </button>
+          <button class="btn" type="submit" id="ev-save" style="background:#10B981; border-color:#10B981; font-weight:600; padding:10px 24px; box-shadow:0 4px 12px rgba(16,185,129,0.25);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            <span>Simpan Event</span>
+          </button>
+        </div>
+      </div>
+      <div id="ev-msg" class="alert" role="status" hidden style="margin-top:16px;"></div>
+    </div>
   </section>
 
-  <div style="margin-top:20px" class="stack">
-    <div id="ev-msg" class="alert" role="status" hidden></div><div class="row">
-      <button class="btn" type="submit" id="ev-save">Simpan event</button><a
-        class="btn btn--secondary"
-        href="/admin/dashboard/events">Kembali</a>
-    </div>
-  </div>
-  <template id="tpl-ticket"><EventRows kind="ticket" /></template><template
-    id="tpl-field"><EventRows kind="field" /></template
-  ><template id="tpl-faq"><EventRows kind="faq" /></template>
+  <template id="tpl-ticket"><EventRows kind="ticket" /></template>
+  <template id="tpl-field"><EventRows kind="field" /></template>
+  <template id="tpl-faq"><EventRows kind="faq" /></template>
 </form>
+
 <script>
   import "../scripts/event-form.ts";
   import "../scripts/upload.ts";

@@ -77,3 +77,18 @@ document.querySelectorAll<HTMLElement>('.nav__drop').forEach((dropEl) => {
     }
   });
 });
+
+// Accordion eksklusif untuk sidebar panel (.panel__group):
+// Ketika satu dropdown dibuka, dropdown yang sebelumnya terbuka otomatis ditutup
+const sidebarGroups = document.querySelectorAll<HTMLDetailsElement>('.panel__group');
+sidebarGroups.forEach((group) => {
+  group.addEventListener('toggle', () => {
+    if (group.open) {
+      sidebarGroups.forEach((other) => {
+        if (other !== group && other.open) {
+          other.open = false;
+        }
+      });
+    }
+  });
+});

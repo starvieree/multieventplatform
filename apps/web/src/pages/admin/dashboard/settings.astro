@@ -3,23 +3,56 @@ import PanelLayout from '../../../layouts/PanelLayout.astro';
 import FormField from '../../../components/FormField.astro';
 import { adminDb } from '../../../lib/supabase/server';
 import { can } from '../../../lib/admin-resources';
+
 if (!can(Astro.locals, 'settings.manage')) return Astro.rewrite('/404');
 const { data } = await adminDb().from('app_settings').select('key,value');
 const S = Object.fromEntries((data ?? []).map((r) => [r.key, r.value])) as any;
 ---
-<PanelLayout title="Pengaturan" variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: 'Pengaturan' }]}>
-  <h1 style="margin-bottom:16px">Pengaturan</h1>
-  <div class="stack" style="max-width:720px">
-    <form class="form card card--pad" id="set-site" data-setting="site"><h2 style="font-size:1.2rem;margin:0">Informasi situs</h2><FormField name="name" label="Nama" value={S.site?.name} /><FormField name="email" type="email" label="Email kontak" value={S.site?.email} /><FormField name="phone" label="Telepon" value={S.site?.phone} /><FormField name="address" type="textarea" rows={2} label="Alamat" value={S.site?.address} /><FormField name="instagram" label="Instagram" value={S.site?.instagram} /><button class="btn" type="submit">Simpan</button></form>
-    <form class="form card card--pad" data-setting="reservation_minutes"><h2 style="font-size:1.2rem;margin:0">Reservasi kuota</h2><FormField name="value" type="number" min={5} max={1440} label="Durasi reservasi (menit)" value={S.reservation_minutes} hint="Berlaku untuk reservasi baru. Waktu bayar Midtrans mengikuti sisa reservasi." /><button class="btn" type="submit">Simpan</button></form>
-    <form class="form card card--pad" data-setting="policy"><h2 style="font-size:1.2rem;margin:0">Kebijakan</h2><FormField name="cancellation" type="textarea" rows={3} label="Pembatalan" value={S.policy?.cancellation} /><FormField name="refund" type="textarea" rows={3} label="Refund" value={S.policy?.refund} /><button class="btn" type="submit">Simpan</button></form>
+
+<PanelLayout title="Pengaturan Platform" variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: 'Pengaturan Platform' }]}>
+  <div style="margin-bottom: 24px;">
+    <h1>Pengaturan Platform</h1>
+    <p class="muted small" style="margin:4px 0 0; color:#6B7280;">Kelola parameter global sistem, identitas situs, dan batas waktu reservasi pembayaran.</p>
+  </div>
+
+  <div class="stack" style="max-width:760px; display:flex; flex-direction:column; gap:24px;">
+    <form class="form card card--pad" id="set-site" data-setting="site">
+      <h2 style="font-size:1.1rem; font-weight:600; color:#111827; margin:0 0 16px; border-bottom:1px solid #F3F4F6; padding-bottom:10px;">
+        Informasi & Identitas Situs
+      </h2>
+      <FormField name="name" label="Nama Platform / Brand" value={S.site?.name} />
+      <FormField name="email" type="email" label="Email Kontak Resmi" value={S.site?.email} />
+      <FormField name="phone" label="Nomor Telepon / WhatsApp CS" value={S.site?.phone} />
+      <FormField name="address" type="textarea" rows={2} label="Alamat Kantor" value={S.site?.address} />
+      <FormField name="instagram" label="Username / Link Instagram" value={S.site?.instagram} />
+      <button class="btn" type="submit" style="margin-top:12px;">Simpan Perubahan</button>
+    </form>
+
+    <form class="form card card--pad" data-setting="reservation_minutes">
+      <h2 style="font-size:1.1rem; font-weight:600; color:#111827; margin:0 0 16px; border-bottom:1px solid #F3F4F6; padding-bottom:10px;">
+        Aturan Reservasi Kuota & Payment Hold
+      </h2>
+      <FormField name="value" type="number" min={5} max={1440} label="Durasi Reservasi Tiket (Menit)" value={S.reservation_minutes} hint="Masa berlaku tiket di antrean sebelum kadaluarsa otomatis jika pembayaran belum selesai." />
+      <button class="btn" type="submit" style="margin-top:12px;">Simpan Durasi</button>
+    </form>
+
+    <form class="form card card--pad" data-setting="policy">
+      <h2 style="font-size:1.1rem; font-weight:600; color:#111827; margin:0 0 16px; border-bottom:1px solid #F3F4F6; padding-bottom:10px;">
+        Kebijakan & Ketentuan Pengembalian (Refund)
+      </h2>
+      <FormField name="cancellation" type="textarea" rows={3} label="Kebijakan Pembatalan Peserta" value={S.policy?.cancellation} />
+      <FormField name="refund" type="textarea" rows={3} label="Aturan & Syarat Refund Dana" value={S.policy?.refund} />
+      <button class="btn" type="submit" style="margin-top:12px;">Simpan Kebijakan</button>
+    </form>
+
     <div id="set-msg" class="alert" role="status" hidden></div>
   </div>
+
   <script>
     document.querySelectorAll<HTMLFormElement>('form[data-setting]').forEach((f) => f.addEventListener('submit', async (e) => {
       e.preventDefault(); const key = f.dataset.setting!; const fd = Object.fromEntries(new FormData(f)); const value = key === 'reservation_minutes' ? Number(fd.value) : fd;
       const res = await fetch('/api/v1/admin/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value }) });
-      const m = document.getElementById('set-msg')!; m.hidden = false; m.className = `alert ${res.ok ? 'alert--ok' : 'alert--bad'}`; m.textContent = res.ok ? 'Pengaturan disimpan.' : ((await res.json().catch(() => ({}))).error?.message ?? 'Gagal menyimpan.');
+      const m = document.getElementById('set-msg')!; m.hidden = false; m.className = `alert ${res.ok ? 'alert--ok' : 'alert--bad'}`; m.textContent = res.ok ? 'Pengaturan berhasil diperbarui.' : ((await res.json().catch(() => ({}))).error?.message ?? 'Gagal menyimpan pengaturan.');
     }));
   </script>
 </PanelLayout>

@@ -5,18 +5,165 @@ import Pagination from '../../../../components/Pagination.astro';
 import StateBox from '../../../../components/StateBox.astro';
 import { adminDb } from '../../../../lib/supabase/server';
 import { RESOURCES, can, cleanSearch } from '../../../../lib/admin-resources';
+
 const res = RESOURCES[Astro.params.resource!];
 if (!res || !can(Astro.locals, res.perm)) return Astro.rewrite('/404');
+
 const sp = Astro.url.searchParams, page = Math.max(1, Number(sp.get('page') ?? 1) || 1), size = 15;
+const isReg = res.slug === 'registrations';
+const eventId = sp.get('event_id') ?? '';
+
 let q = adminDb().from(res.table).select(res.select, { count: 'exact' });
 const s = cleanSearch(sp.get('q')); if (s) q = q.or(res.search.map((c) => `${c}.ilike.%${s}%`).join(','));
 const st = sp.get('status') ?? ''; if (st && res.statusCol && res.statusOptions?.includes(st)) q = q.eq(res.statusCol, st);
-const { data, count, error } = await q.order(res.order, { ascending: ['sort_order', 'name'].includes(res.order) }).range((page - 1) * size, page * size - 1);
+if (isReg && eventId) q = q.eq('event_id', eventId);
+
+const [{ data, count, error }, { data: eventList }] = await Promise.all([
+  q.order(res.order, { ascending: ['sort_order', 'name'].includes(res.order) }).range((page - 1) * size, page * size - 1),
+  isReg ? adminDb().from('events').select('id,title').order('title') : Promise.resolve({ data: [] } as any)
+]);
 const cols = res.cols.map((c) => c.type === 'link' ? { ...c, href: (r: any) => `/admin/dashboard/${res.slug}/${r.id}` } : c);
+
+const exportParams = new URLSearchParams();
+if (eventId) exportParams.set('event_id', eventId);
+if (st) exportParams.set('status', st);
+if (s) exportParams.set('q', s);
+const exportQuery = exportParams.toString();
+const exportUrl = `/api/v1/admin/reports/registrations${exportQuery ? '?' + exportQuery : ''}`;
+
+const isFiltered = Boolean(eventId || st || s);
+const activeEvent = isReg && eventId && eventList ? eventList.find((e: any) => e.id === eventId) : null;
+const activeEventTitle = activeEvent ? activeEvent.title : '';
 ---
+
 <PanelLayout title={res.title} variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: res.title }]}>
-  <div class="row between"><h1>{res.title}</h1>{res.create && <a class="btn" href={`/admin/dashboard/${res.slug}/new`}>Tambah</a>}</div>
-  <form method="get" class="row" style="margin:16px 0" role="search"><div class="field"><label class="sr-only" for="q">Cari</label><input class="input" id="q" name="q" value={s} placeholder="Cari…" maxlength="80" /></div>
-    {res.statusOptions && <div class="field"><label class="sr-only" for="st">Status</label><select class="input" id="st" name="status"><option value="">Semua status</option>{res.statusOptions.map((o) => <option selected={o === st}>{o}</option>)}</select></div>}<button class="btn btn--secondary">Terapkan</button></form>
-  {error ? <StateBox kind="error" title="Data belum dapat dimuat" href={Astro.url.pathname} action="Coba lagi" /> : <><DataTable caption={res.title} cols={cols as any} rows={data ?? []} /><Pagination page={page} total={count ?? 0} pageSize={size} /></>}
+  <div class="row between" style="align-items:flex-end; margin-bottom: 24px; flex-wrap:wrap; gap:16px;">
+    <div>
+      <h1>{res.title}</h1>
+      <p class="muted small" style="margin:4px 0 0; color:#6B7280;">Daftar dan manajemen data {res.title.toLowerCase()} platform.</p>
+    </div>
+    {res.create && (
+      <a class="btn" href={`/admin/dashboard/${res.slug}/new`}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>Tambah {res.title}</span>
+      </a>
+    )}
+  </div>
+
+  <div class="card card--pad" style="margin-bottom: 20px; padding: 18px 20px;">
+    <form method="get" id="reg-filter-form" class="row" style="gap:12px; align-items:center; flex-wrap:wrap;" role="search">
+      <div class="field" style="flex:1; min-width:220px; margin:0;">
+        <label class="sr-only" for="q">Cari {res.title}</label>
+        <input class="input" id="q" name="q" value={s} placeholder={`Cari berdasarkan ${res.search.join(', ')}…`} maxlength="80" style="width:100%;" />
+      </div>
+      {isReg && eventList && eventList.length > 0 && (
+        <div class="field" style="margin:0;">
+          <label class="sr-only" for="ev_id">Pilih Event</label>
+          <select class="input" id="ev_id" name="event_id" style="min-width:200px;">
+            <option value="">Semua Event</option>
+            {eventList.map((ev: any) => (
+              <option selected={ev.id === eventId} value={ev.id}>{ev.title}</option>
+            ))}
+          </select>
+        </div>
+      )}
+      {res.statusOptions && (
+        <div class="field" style="margin:0;">
+          <label class="sr-only" for="st">Filter Status</label>
+          <select class="input" id="st" name="status">
+            <option value="">Semua status</option>
+            {res.statusOptions.map((o) => <option selected={o === st}>{o}</option>)}
+          </select>
+        </div>
+      )}
+      <button class="btn btn--secondary btn--sm" type="submit">Terapkan Filter</button>
+      {(s || st || eventId) && (
+        <a href={`/admin/dashboard/${res.slug}`} class="btn btn--secondary btn--sm" style="color:#6B7280;">Reset</a>
+      )}
+      {isReg && (
+        <a
+          id="btn-export-csv"
+          href={exportUrl}
+          download
+          class={isFiltered ? "btn btn--primary btn--sm" : "btn btn--secondary btn--sm"}
+          style="margin-left:auto; display:inline-flex; align-items:center; gap:6px;"
+          title={isFiltered ? "Unduh berkas .CSV sesuai hasil filter yang aktif" : "Unduh berkas .CSV seluruh data peserta"}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>{isFiltered ? 'Unduh CSV Sesuai Filter' : 'Unduh CSV (.CSV)'}</span>
+        </a>
+      )}
+    </form>
+
+    {isReg && (
+      <div style="margin-top:14px; padding-top:12px; border-top:1px dashed #E5E7EB; font-size:0.825rem;">
+        {isFiltered ? (
+          <div style="display:flex; align-items:center; gap:8px; color:#1E40AF; background:#EFF6FF; padding:8px 12px; border-radius:8px; border:1px solid #BFDBFE;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+            <span style="line-height:1.4;">
+              <strong>Filter aktif:</strong> Data pada tabel dan berkas CSV otomatis disaring untuk 
+              {activeEventTitle ? <span> Event <strong>"{activeEventTitle}"</strong></span> : ''}
+              {st ? <span> Status <strong>"{st}"</strong></span> : ''}
+              {s ? <span> Kata kunci <strong>"{s}"</strong></span> : ''}.
+              Klik <strong>"Unduh CSV Sesuai Filter"</strong> untuk mengekspor data yang tampil.
+            </span>
+          </div>
+        ) : (
+          <div style="display:flex; align-items:center; gap:8px; color:#6B7280;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#465FFF; flex-shrink:0;">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span style="line-height:1.4;">
+              <strong>Petunjuk Ekspor:</strong> Anda dapat memilih <strong>Pilih Event</strong> atau <strong>Filter Status</strong> di atas lalu klik <em>Terapkan Filter</em> untuk menyaring data sebelum mengunduh, atau langsung klik <em>Unduh CSV</em> untuk mengunduh seluruh data pendaftar.
+            </span>
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+
+  {error ? (
+    <StateBox kind="error" title="Data belum dapat dimuat" href={Astro.url.pathname} action="Coba lagi" />
+  ) : (
+    <>
+      <DataTable caption={res.title} cols={cols as any} rows={data ?? []} />
+      <div style="margin-top: 20px;">
+        <Pagination page={page} total={count ?? 0} pageSize={size} />
+      </div>
+    </>
+  )}
 </PanelLayout>
+
+<script>
+  (() => {
+    const form = document.getElementById('reg-filter-form') as HTMLFormElement | null;
+    const btnExport = document.getElementById('btn-export-csv') as HTMLAnchorElement | null;
+    if (form && btnExport) {
+      const updateExportUrl = () => {
+        const fd = new FormData(form);
+        const p = new URLSearchParams();
+        const ev = ((fd.get('event_id') as string) || '').trim();
+        const st = ((fd.get('status') as string) || '').trim();
+        const q = ((fd.get('q') as string) || '').trim();
+        if (ev) p.set('event_id', ev);
+        if (st) p.set('status', st);
+        if (q) p.set('q', q);
+        const qs = p.toString();
+        btnExport.href = `/api/v1/admin/reports/registrations${qs ? '?' + qs : ''}`;
+      };
+      form.addEventListener('change', updateExportUrl);
+      form.addEventListener('input', updateExportUrl);
+    }
+  })();
+</script>

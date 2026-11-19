@@ -1,11 +1,86 @@
 ---
 import PanelLayout from '../../../layouts/PanelLayout.astro';
 import { can } from '../../../lib/admin-resources';
+import { adminDb } from '../../../lib/supabase/server';
+
 if (!can(Astro.locals, 'reports.view')) return Astro.rewrite('/404');
-const reports = [['registrations', 'Laporan pendaftaran', 'Kode, event, peserta, status, dan total.'], ['payments', 'Laporan pembayaran', 'Order, status, nominal, metode, waktu bayar.'], ['participants', 'Laporan peserta', 'Nama, email, telepon, dan status akun.']];
+
+const { data: events } = await adminDb().from('events').select('id,title').order('title');
+
+const reports = [
+  { id: 'registrations', title: 'Laporan Peserta & Transaksi', desc: 'Data lengkap peserta tiket, kode order, nomor & status tiket, identitas pemesan (email & WA), waktu check-in, serta rincian transaksi pembayaran.', icon: 'clipboard', filterEvent: true },
+  { id: 'payments', title: 'Laporan Transaksi Pembayaran', desc: 'Order ID transaksi, status gateway, nominal pembayaran, metode transfer/QRIS, dan waktu bayar.', icon: 'wallet', filterEvent: true },
+  { id: 'participants', title: 'Laporan Data Pengguna', desc: 'Database seluruh akun terdaftar: nama lengkap, alamat email terverifikasi, nomor HP, dan status akun.', icon: 'users', filterEvent: false },
+];
 ---
-<PanelLayout title="Laporan" variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: 'Laporan' }]}>
-  <h1>Laporan & ekspor</h1><p class="muted">Ekspor CSV maksimal 5.000 baris per unduhan. Setiap ekspor tercatat di audit log karena berisi data pribadi.</p>
-  <div class="grid grid--3" style="margin-top:16px">{reports.map(([k, t, d]) => <form class="card card--pad form" method="get" action={`/api/v1/admin/reports/${k}`}><h2 style="font-size:1.2rem;margin:0">{t}</h2><p class="muted small" style="margin:0">{d}</p>
-    <div class="field"><label for={`f-${k}`}>Dari tanggal</label><input class="input" type="date" id={`f-${k}`} name="from" /></div><div class="field"><label for={`t-${k}`}>Sampai tanggal</label><input class="input" type="date" id={`t-${k}`} name="to" /></div><button class="btn" type="submit">Unduh CSV</button></form>)}</div>
+
+<PanelLayout title="Laporan & Ekspor" variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: 'Laporan & Ekspor' }]}>
+  <div style="margin-bottom: 24px;">
+    <h1>Laporan & Ekspor Data</h1>
+    <p class="muted small" style="margin:4px 0 0; color:#6B7280;">Unduh dataset operasional dan keuangan platform dalam format CSV. Anda dapat memfilter per event atau rentang tanggal.</p>
+  </div>
+
+  <div class="grid grid--3" style="gap:24px;">
+    {reports.map((r) => (
+      <form class="card card--pad form" method="get" action={`/api/v1/admin/reports/${r.id}`} style="display:flex; flex-direction:column; justify-content:space-between; gap:16px;">
+        <div>
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+            <div style="width:40px; height:40px; border-radius:12px; background:#ECF3FF; color:#465FFF; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              {r.icon === 'clipboard' && (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                  <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                </svg>
+              )}
+              {r.icon === 'wallet' && (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                  <line x1="2" y1="10" x2="22" y2="10"></line>
+                </svg>
+              )}
+              {r.icon === 'users' && (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                </svg>
+              )}
+            </div>
+            <h2 style="font-size:1.1rem; font-weight:600; color:#111827; margin:0;">{r.title}</h2>
+          </div>
+          <p class="muted small" style="margin:0; line-height:1.5; color:#6B7280;">{r.desc}</p>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px; border-top:1px solid #F3F4F6; padding-top:14px;">
+          {r.filterEvent && (
+            <div class="field" style="margin:0;">
+              <label for={`ev-${r.id}`} style="font-size:0.8rem; font-weight:500; color:#4B5563;">Pilih Event</label>
+              <select class="input" id={`ev-${r.id}`} name="event_id" style="width:100%; margin-top:4px;">
+                <option value="">Semua Event (Global)</option>
+                {(events ?? []).map((e: any) => (
+                  <option value={e.id}>{e.title}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div class="field" style="margin:0;">
+            <label for={`f-${r.id}`} style="font-size:0.8rem; font-weight:500; color:#4B5563;">Dari tanggal</label>
+            <input class="input" type="date" id={`f-${r.id}`} name="from" style="width:100%; margin-top:4px;" />
+          </div>
+          <div class="field" style="margin:0;">
+            <label for={`t-${r.id}`} style="font-size:0.8rem; font-weight:500; color:#4B5563;">Sampai tanggal</label>
+            <input class="input" type="date" id={`t-${r.id}`} name="to" style="width:100%; margin-top:4px;" />
+          </div>
+        </div>
+
+        <button class="btn" type="submit" style="width:100%; justify-content:center;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Unduh CSV</span>
+        </button>
+      </form>
+    ))}
+  </div>
 </PanelLayout>

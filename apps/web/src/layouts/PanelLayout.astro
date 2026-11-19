@@ -1,36 +1,262 @@
 ---
 import BaseLayout from './BaseLayout.astro';
 import Breadcrumb from '../components/Breadcrumb.astro';
-interface Props { title: string; variant?: 'admin'; crumbs?: { label: string; href?: string }[]; }
+
+interface Props {
+  title: string;
+  variant?: 'admin';
+  crumbs?: { label: string; href?: string }[];
+}
+
 const { title, variant = 'admin', crumbs = [] } = Astro.props;
 const path = Astro.url.pathname;
-const { permissions, roles } = Astro.locals;
+const { permissions = [], roles = [] } = Astro.locals;
 const can = (p?: string) => !p || roles.includes('super_admin') || permissions.includes(p);
-const A = [
-  ['Dashboard', '/admin/dashboard', ''], ['Event', '/admin/dashboard/events', 'events.manage'], ['Kategori', '/admin/dashboard/categories', 'categories.manage'], ['Peserta', '/admin/dashboard/participants', 'participants.view'],
-  ['Pendaftaran', '/admin/dashboard/registrations', 'registrations.view'], ['Transaksi', '/admin/dashboard/transactions', 'transactions.view'], ['Antrean', '/admin/dashboard/queues', 'queues.view'],
-  ['Partnership', '/admin/dashboard/partnerships', 'partnerships.manage'], ['Blog', '/admin/dashboard/blogs', 'blogs.manage'], ['Banner', '/admin/dashboard/banners', 'banners.manage'], ['Pesan', '/admin/dashboard/messages', 'messages.manage'],
-  ['Laporan', '/admin/dashboard/reports', 'reports.view'], ['Admin & hak akses', '/admin/dashboard/admins', 'admins.manage'], ['Audit log', '/admin/dashboard/audit-logs', 'audit.view'], ['Pengaturan', '/admin/dashboard/settings', 'settings.manage']
-] as const;
-const items = A.filter((i) => can(i[2]));
+
+// Definisi Struktur Menu TailAdmin Berkelompok (Grouped & Collapsible)
+type NavItem = { label: string; href: string; perm?: string };
+type NavSection =
+  | { type: 'single'; label: string; href: string; perm?: string; icon: string }
+  | { type: 'group'; title: string; icon: string; items: NavItem[] };
+
+const sections: NavSection[] = [
+  {
+    type: 'single',
+    label: 'Dashboard',
+    href: '/admin/dashboard',
+    perm: '',
+    icon: 'dashboard',
+  },
+  {
+    type: 'group',
+    title: 'Kelola Event',
+    icon: 'calendar',
+    items: [
+      { label: 'Kategori Event', href: '/admin/dashboard/categories', perm: 'categories.manage' },
+      { label: 'Katalog Event', href: '/admin/dashboard/events', perm: 'events.manage' },
+      { label: 'Pendaftaran & Transaksi', href: '/admin/dashboard/registrations', perm: 'registrations.view' },
+    ],
+  },
+  {
+    type: 'group',
+    title: 'Pengguna & Keuangan',
+    icon: 'wallet',
+    items: [
+      { label: 'Data Pengguna', href: '/admin/dashboard/participants', perm: 'participants.view' },
+      { label: 'Laporan & Ekspor', href: '/admin/dashboard/reports', perm: 'reports.view' },
+    ],
+  },
+  {
+    type: 'group',
+    title: 'Marketing & Konten',
+    icon: 'megaphone',
+    items: [
+      { label: 'Banner Promosi', href: '/admin/dashboard/banners', perm: 'banners.manage' },
+      { label: 'Artikel Blog', href: '/admin/dashboard/blogs', perm: 'blogs.manage' },
+      { label: 'Pengajuan Partnership', href: '/admin/dashboard/partnerships', perm: 'partnerships.manage' },
+      { label: 'Pesan Kontak', href: '/admin/dashboard/messages', perm: 'messages.manage' },
+    ],
+  },
+  {
+    type: 'group',
+    title: 'Sistem & Keamanan',
+    icon: 'shield',
+    items: [
+      { label: 'Antrean & Worker', href: '/admin/dashboard/queues', perm: 'queues.view' },
+      { label: 'Admin & Hak Akses', href: '/admin/dashboard/admins', perm: 'admins.manage' },
+      { label: 'Audit Log', href: '/admin/dashboard/audit-logs', perm: 'audit.view' },
+      { label: 'Pengaturan Platform', href: '/admin/dashboard/settings', perm: 'settings.manage' },
+    ],
+  },
+];
+
 const active = (href: string) => (href === '/admin/dashboard' ? path === href : path === href || path.startsWith(href + '/'));
+const isGroupActive = (items: NavItem[]) => items.some((item) => active(item.href));
+
+const userEmail = Astro.locals.user?.email || 'admin@platform.id';
+const isSuperAdmin = roles.includes('super_admin');
+const userRole = isSuperAdmin ? 'Super Admin' : 'Admin';
+const userInitial = (userEmail.split('@')[0] || 'AD').slice(0, 2).toUpperCase();
 ---
+
 <BaseLayout title={title} noindex>
   <div class="panel" id="panel" data-open="false">
+    <!-- SIDEBAR NAVIGATION TAILADMIN STYLE -->
     <aside class="panel__side" id="panel-side" aria-label="Menu admin">
-      <a class="logo" href="/"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#074ce0"/><path d="M9 11h14M9 16h14M9 21h8" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>Platform Event</a>
-      <nav>
-        {items.map(([label, href]) => <a href={href} aria-current={active(href) ? 'page' : undefined}>{label}</a>)}
-        <form method="post" action="/api/auth/signout"><button class="btn btn--secondary btn--sm" style="margin:16px 12px 0">Keluar</button></form>
+      <div class="panel__side-header">
+        <a class="panel__brand" href="/admin/dashboard">
+          <div class="panel__brand-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+              <path d="M2 17l10 5 10-5"></path>
+              <path d="M2 12l10 5 10-5"></path>
+            </svg>
+          </div>
+          <div class="panel__brand-meta">
+            <span class="panel__brand-title">TailAdmin</span>
+            <span class="panel__brand-badge">Event Pro</span>
+          </div>
+        </a>
+      </div>
+
+      <nav class="panel__nav">
+        <div class="panel__nav-label">MENU UTAMA</div>
+
+        {sections.map((sec) => {
+          if (sec.type === 'single') {
+            if (!can(sec.perm)) return null;
+            const isAct = active(sec.href);
+            return (
+              <a href={sec.href} class={`panel__nav-link ${isAct ? 'is-active' : ''}`} aria-current={isAct ? 'page' : undefined}>
+                <span class="panel__nav-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                  </svg>
+                </span>
+                <span class="panel__nav-text">{sec.label}</span>
+              </a>
+            );
+          }
+
+          const visibleItems = sec.items.filter((item) => can(item.perm));
+          if (visibleItems.length === 0) return null;
+          const groupOpen = isGroupActive(visibleItems);
+
+          return (
+            <details class="panel__group" name="sidebar-group" open={groupOpen}>
+              <summary class={`panel__group-summary ${groupOpen ? 'is-expanded' : ''}`}>
+                <span class="panel__group-title-wrap">
+                  <span class="panel__nav-icon">
+                    {sec.icon === 'calendar' && (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                      </svg>
+                    )}
+                    {sec.icon === 'wallet' && (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                        <line x1="2" y1="10" x2="22" y2="10"></line>
+                        <circle cx="16" cy="15" r="1"></circle>
+                      </svg>
+                    )}
+                    {sec.icon === 'megaphone' && (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m3 11 18-5v12L3 14v-3z"></path>
+                        <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"></path>
+                      </svg>
+                    )}
+                    {sec.icon === 'shield' && (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                      </svg>
+                    )}
+                  </span>
+                  <span class="panel__nav-text">{sec.title}</span>
+                </span>
+                <span class="panel__chevron">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </span>
+              </summary>
+              <div class="panel__subnav">
+                {visibleItems.map((item) => {
+                  const isAct = active(item.href);
+                  return (
+                    <a href={item.href} class={`panel__subnav-link ${isAct ? 'is-active' : ''}`} aria-current={isAct ? 'page' : undefined}>
+                      <span>{item.label}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            </details>
+          );
+        })}
       </nav>
+
+      <div class="panel__side-footer">
+        <div class="panel__side-support-box">
+          <div class="panel__support-icon">⚡</div>
+          <div class="panel__support-text">
+            <b>Platform Engine</b>
+            <span>LavinMQ & Supabase</span>
+          </div>
+        </div>
+      </div>
     </aside>
+
+    <!-- MAIN DASHBOARD CONTENT AREA -->
     <div class="panel__main">
+      <!-- TOPBAR TAILADMIN -->
       <header class="panel__top">
-        <div class="row"><button class="btn btn--secondary btn--sm panel__toggle" type="button" aria-controls="panel-side" aria-expanded="false" id="panel-toggle">Menu</button><Breadcrumb items={crumbs} /></div>
-        <div class="row small"><a href="/">Lihat Web Publik</a><span class="muted">{Astro.locals.user?.email}</span></div>
+        <div class="panel__top-left">
+          <button class="panel__toggle" type="button" aria-controls="panel-side" aria-expanded="false" id="panel-toggle" title="Toggle menu navigasi">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+
+          <div class="panel__search-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" placeholder="Cari data, event, tiket... (Ctrl+K)" aria-label="Cari data" />
+            <kbd class="panel__search-kbd">⌘K</kbd>
+          </div>
+        </div>
+
+        <div class="panel__top-right">
+          <a class="panel__btn-pub" href="/" target="_blank" rel="noopener">
+            <span>Web Publik</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+          </a>
+
+          <div class="panel__user-pill">
+            <div class="panel__user-avatar">{userInitial}</div>
+            <div class="panel__user-meta">
+              <span class="panel__user-name">{userEmail}</span>
+              <span class="panel__user-role">{userRole}</span>
+            </div>
+          </div>
+
+          <form method="post" action="/api/auth/signout" class="panel__logout-form">
+            <button class="panel__logout-btn" title="Keluar dari akun admin" type="submit">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+            </button>
+          </form>
+        </div>
       </header>
-      <main id="main" class="panel__content"><slot /></main>
+
+      <!-- BREADCRUMB BAR -->
+      {crumbs.length > 0 && (
+        <div class="panel__crumbs-bar">
+          <Breadcrumb items={crumbs} />
+        </div>
+      )}
+
+      <!-- MAIN PAGE CONTENT -->
+      <main id="main" class="panel__content">
+        <slot />
+      </main>
     </div>
   </div>
+
   <script>import '../scripts/nav.ts';</script>
 </BaseLayout>
