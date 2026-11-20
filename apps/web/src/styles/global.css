@@ -2401,6 +2401,11 @@ table.table {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Backdrop Overlay untuk Mobile Drawer */
+.panel__backdrop {
+  display: none;
+}
+
 /* Sidebar */
 .panel__side {
   background: #FFFFFF;
@@ -3837,18 +3842,40 @@ table.table {
     justify-content: center;
   }
 
+  /* ========================================================
+     TAILADMIN PANEL MOBILE VIEW (< 900px)
+  ======================================================== */
   .panel {
     grid-template-columns: 1fr;
+  }
+
+  .panel__backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.45);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 45;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  .panel[data-open='true'] .panel__backdrop {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .panel__side {
     position: fixed;
     inset: 0 auto 0 0;
-    width: 280px;
+    width: 290px;
+    max-width: 82vw;
     z-index: 50;
     transform: translateX(-100%);
     transition: transform var(--dp-motion-interaction) var(--dp-motion-easing);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.08);
   }
 
   .panel[data-open='true'] .panel__side {
@@ -3857,11 +3884,365 @@ table.table {
 
   .panel__toggle {
     display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 8px;
+    cursor: pointer;
   }
 
-  .panel__top,
+  .panel__top {
+    height: 60px;
+    padding: 0 16px;
+    gap: 12px;
+  }
+
   .panel__content {
-    padding-inline: 18px;
+    padding: 18px 16px 48px;
+  }
+}
+
+/* ========================================================
+   TABLET & MOBILE BREAKPOINT (< 768px)
+======================================================== */
+@media (max-width: 768px) {
+  /* Sembunyikan search bar desktop shortcut di layar mobile */
+  .panel__search-box {
+    display: none !important;
+  }
+
+  .panel__top-left {
+    gap: 10px;
+  }
+
+  .panel__top-right {
+    gap: 8px;
+  }
+
+  /* Breadcrumb horizontal scroll di mobile */
+  .panel__crumbs-bar {
+    padding: 8px 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    border-bottom: 1px solid #E5E7EB;
+  }
+  .panel__crumbs-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Kartu & Container */
+  .panel .card--pad {
+    padding: 16px 14px;
+    border-radius: 12px;
+  }
+
+  /* Tabel sentuh mobile horizontal scroll */
+  .panel .table-wrap {
+    border-radius: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 12px;
+  }
+
+  .panel .table th {
+    padding: 10px 12px;
+    font-size: 0.7rem;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+  }
+
+  .panel .table td {
+    padding: 12px;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+
+  /* Laporan Grid (reports.astro) */
+  .reports-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  /* Admin RBAC Grid (admins.astro) */
+  .admins-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  /* Pencegahan auto-zoom viewport pada iOS Safari */
+  .panel .input,
+  .panel select,
+  .panel textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* ========================================================
+   SMARTPHONE RESPONSIVE BREAKPOINT (< 640px)
+======================================================== */
+@media (max-width: 640px) {
+  /* Ringkas User Pill di Header HP */
+  .panel__user-meta {
+    display: none !important;
+  }
+
+  .panel__user-pill {
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  .panel__user-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
+  }
+
+  /* Ringkas Tombol Web Publik di Topbar HP */
+  .panel__btn-pub span {
+    display: none !important;
+  }
+
+  .panel__btn-pub {
+    padding: 8px !important;
+    border-radius: 8px !important;
+    min-width: 34px !important;
+    justify-content: center !important;
+  }
+
+  .panel__logout-btn {
+    padding: 8px !important;
+    border-radius: 8px !important;
+  }
+
+  /* Header Halaman di Layar HP */
+  .panel h1 {
+    font-size: 1.35rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .panel .row.between {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .panel .row.between > div:last-child {
+    width: 100% !important;
+  }
+
+  .panel .row.between .btn,
+  .panel .row.between a.btn {
+    width: 100% !important;
+    justify-content: center !important;
+    min-height: 42px !important;
+  }
+
+  /* Header Dashboard Home Form Rentang Waktu */
+  .dash-days-form {
+    width: 100% !important;
+    display: flex !important;
+    gap: 8px !important;
+  }
+
+  .dash-days-form select {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  .dash-days-form button {
+    flex: 0 0 auto !important;
+    min-height: 40px !important;
+  }
+
+  /* Widget Kartu Statistik Dashboard & Queues di HP (2 Kolom Proporsional) */
+  .dash-stats-grid,
+  .queue-stats-grid,
+  .panel .grid--4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .panel .stat {
+    padding: 12px 10px !important;
+    border-radius: 12px !important;
+    gap: 4px !important;
+  }
+
+  .panel .stat b {
+    font-size: 1.25rem !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  .panel .stat .meta {
+    font-size: 0.72rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .panel .stat__hint {
+    font-size: 0.6875rem !important;
+  }
+
+  .panel .stat__icon-box {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 8px !important;
+  }
+
+  .panel .stat__icon-box svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .panel .bars {
+    height: 130px !important;
+    gap: 3px !important;
+  }
+
+  /* Form Filter & Pencarian Tabel Sumber Daya (Resource List) */
+  .reg-filter-card {
+    padding: 14px 12px !important;
+  }
+
+  .reg-filter-form {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .reg-filter-field {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .reg-filter-field .input,
+  .reg-filter-field select {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .reg-filter-btns {
+    display: flex !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .reg-filter-btns .btn,
+  .reg-filter-btns a.btn {
+    flex: 1 1 auto !important;
+    justify-content: center !important;
+    min-height: 40px !important;
+  }
+
+  #btn-export-csv {
+    width: 100% !important;
+    justify-content: center !important;
+    margin-left: 0 !important;
+    min-height: 42px !important;
+  }
+
+  /* Tombol Header Aksi Event (Tutup Pendaftaran, Arsipkan, Tarik ke Draf, Lihat Publik) */
+  .event-header-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+  }
+
+  .event-header-row .row-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .event-header-row .row-actions .btn {
+    width: 100% !important;
+    justify-content: center !important;
+    min-height: 40px !important;
+    font-size: 0.8125rem !important;
+    padding: 8px 8px !important;
+    text-align: center !important;
+  }
+
+  /* Wizard Stepper Pengisian Event di HP */
+  .wizard-stepper {
+    padding: 12px 10px !important;
+    border-radius: 12px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .wizard-stepper__track {
+    min-width: 580px !important;
+  }
+
+  .wizard-step__bullet {
+    width: 72px !important;
+  }
+
+  .wizard-step__circle {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.8125rem !important;
+  }
+
+  .wizard-step__line {
+    margin-top: 15px !important;
+    margin-inline: 4px !important;
+  }
+
+  .wizard-step__label {
+    font-size: 0.6875rem !important;
+    line-height: 1.15 !important;
+  }
+
+  /* Tombol Navigasi Langkah (Lanjut / Kembali / Simpan) di HP */
+  .form-step-actions {
+    flex-direction: column-reverse !important;
+    gap: 10px !important;
+    width: 100% !important;
+    margin-top: 20px !important;
+    padding-top: 16px !important;
+  }
+
+  .form-step-actions .btn,
+  .form-step-actions a.btn {
+    width: 100% !important;
+    min-height: 44px !important;
+    justify-content: center !important;
+    font-size: 0.875rem !important;
+  }
+
+  /* Tambah Kategori Tiket Header di HP */
+  .ticket-header-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .ticket-header-row button[data-add='ticket'] {
+    width: 100% !important;
+    justify-content: center !important;
+    min-height: 40px !important;
+  }
+
+  /* Form Pengaturan Platform di HP */
+  .settings-stack {
+    gap: 16px !important;
+  }
+
+  .settings-stack form button[type='submit'] {
+    width: 100% !important;
+    min-height: 44px !important;
+    justify-content: center !important;
+  }
+
+  /* Pagination di HP */
+  .pager {
+    justify-content: center !important;
+    gap: 4px !important;
   }
 }
 

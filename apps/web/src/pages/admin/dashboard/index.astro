@@ -15,12 +15,12 @@ const workerOk = workerAge !== null && workerAge < 60;
 ---
 
 <PanelLayout title="Dashboard Admin" variant="admin" crumbs={[{ label: 'Admin', href: '/admin/dashboard' }, { label: 'Dashboard' }]}>
-  <div class="row between" style="align-items:flex-end; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+  <div class="row between dash-header-row" style="align-items:flex-end; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
     <div>
       <h1>Dashboard Ringkasan</h1>
       <p class="muted small" style="margin:4px 0 0; color: #6B7280;">Pantau performa event, volume pendaftaran, dan kesehatan sistem secara real-time.</p>
     </div>
-    <form method="get" class="row" style="gap:10px;">
+    <form method="get" class="row dash-days-form" style="gap:10px;">
       <label class="sr-only" for="d">Rentang Waktu</label>
       <select class="input" id="d" name="days" style="padding: 8px 14px; font-size: 0.85rem;">
         {[7, 30, 90].map((n) => <option value={n} selected={n === days}>{n} hari terakhir</option>)}
@@ -33,7 +33,7 @@ const workerOk = workerAge !== null && workerAge < 60;
     <div class="alert alert--bad" role="alert" style="margin-top:16px">Ringkasan analitik belum dapat dimuat saat ini.</div>
   ) : (
     <>
-      <div class="grid grid--4" style="margin:0 0 24px 0; gap: 20px;">
+      <div class="grid grid--4 dash-stats-grid" style="margin:0 0 24px 0; gap: 20px;">
         <StatCard label="Event Aktif" value={d.events ?? 0} hint="Event berstatus aktif" />
         <StatCard label="Peserta Terdaftar" value={d.participants ?? 0} hint="Akun audiens unik" />
         <StatCard label={`Pendaftaran (${days} hari)`} value={d.registrations ?? 0} hint={`${d.confirmed ?? 0} terkonfirmasi lunas`} />

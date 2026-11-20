@@ -81,6 +81,9 @@ const userInitial = (userEmail.split('@')[0] || 'AD').slice(0, 2).toUpperCase();
 
 <BaseLayout title={title} noindex>
   <div class="panel" id="panel" data-open="false">
+    <!-- Backdrop Overlay untuk Mobile Drawer Navigasi -->
+    <div class="panel__backdrop" id="panel-backdrop" aria-hidden="true"></div>
+
     <!-- SIDEBAR NAVIGATION TAILADMIN STYLE -->
     <aside class="panel__side" id="panel-side" aria-label="Menu admin">
       <div class="panel__side-header">
@@ -215,8 +218,8 @@ const userInitial = (userEmail.split('@')[0] || 'AD').slice(0, 2).toUpperCase();
         </div>
 
         <div class="panel__top-right">
-          <a class="panel__btn-pub" href="/" target="_blank" rel="noopener">
-            <span>Web Publik</span>
+          <a class="panel__btn-pub" href="/" target="_blank" rel="noopener" title="Buka Halaman Web Publik">
+            <span class="panel__btn-pub-text">Web Publik</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
               <polyline points="15 3 21 3 21 9"></polyline>

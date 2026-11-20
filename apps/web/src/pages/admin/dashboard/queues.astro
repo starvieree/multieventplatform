@@ -35,7 +35,7 @@ const list = (rows ?? []).map((r: any) => ({ ...r, retry: manage && r.status ===
     </div>
   </div>
 
-  <div class="grid grid--4" style="margin:0 0 24px 0; gap:20px;">
+  <div class="grid grid--4 queue-stats-grid" style="margin:0 0 24px 0; gap:20px;">
     <StatCard label="Menunggu (Queued)" value={h.queue_queued ?? 0} hint="Dalam pipeline broker" />
     <StatCard label="Sedang Diproses" value={h.queue_processing ?? 0} hint="Sedang dialokasikan" />
     <StatCard label="Gagal (Dead-letter)" value={h.queue_failed ?? 0} hint="Perlu ditinjau / retry" />

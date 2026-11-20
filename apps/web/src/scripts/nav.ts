@@ -27,17 +27,37 @@ document.querySelectorAll('#nav-links a').forEach((link) => {
 
 const panel = document.getElementById('panel');
 const pBtn = document.getElementById('panel-toggle');
-pBtn?.addEventListener('click', () => {
+const pBackdrop = document.getElementById('panel-backdrop');
+
+const closeMobilePanel = () => {
+  if (panel?.getAttribute('data-open') === 'true') {
+    panel.setAttribute('data-open', 'false');
+    pBtn?.setAttribute('aria-expanded', 'false');
+  }
+};
+
+pBtn?.addEventListener('click', (e) => {
+  e.stopPropagation();
   const open = panel?.getAttribute('data-open') !== 'true';
   panel?.setAttribute('data-open', String(open));
   pBtn.setAttribute('aria-expanded', String(open));
 });
 
+pBackdrop?.addEventListener('click', closeMobilePanel);
+
+// Tutup drawer admin ketika link navigasi diklik di layar mobile
+document.querySelectorAll('.panel__side a').forEach((link) => {
+  link.addEventListener('click', () => {
+    if (window.innerWidth <= 900) {
+      closeMobilePanel();
+    }
+  });
+});
+
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
-  panel?.setAttribute('data-open', 'false');
+  closeMobilePanel();
   closeMobileNav();
-  pBtn?.setAttribute('aria-expanded', 'false');
   document.querySelectorAll('.nav__drop details[open]').forEach((d) => d.removeAttribute('open'));
   document.querySelectorAll('.nav__popover-wrap[open]').forEach((d) => d.removeAttribute('open'));
 });

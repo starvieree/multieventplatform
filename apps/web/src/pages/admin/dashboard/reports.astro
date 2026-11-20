@@ -20,7 +20,7 @@ const reports = [
     <p class="muted small" style="margin:4px 0 0; color:#6B7280;">Unduh dataset operasional dan keuangan platform dalam format CSV. Anda dapat memfilter per event atau rentang tanggal.</p>
   </div>
 
-  <div class="grid grid--3" style="gap:24px;">
+  <div class="grid grid--3 reports-grid" style="gap:24px;">
     {reports.map((r) => (
       <form class="card card--pad form" method="get" action={`/api/v1/admin/reports/${r.id}`} style="display:flex; flex-direction:column; justify-content:space-between; gap:16px;">
         <div>
